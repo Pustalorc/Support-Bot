@@ -158,6 +158,8 @@ namespace Support_Bot
                         return;
                     case "status":
                         var ping = DateTime.Now;
+                        await context.Channel.SendMessageAsync("----------- Support bot V1.1 status report -----------");
+                        await context.Channel.SendMessageAsync("Ping: " + (long)DateTime.Now.Subtract(ping).TotalMilliseconds + "ms.\nRunning on " + Environment.OSVersion + ".\nHave " + server.Messages.Count + " messages for this server.\n----------- Support bot V1.1 status report -----------");
                         await context.Channel.SendMessageAsync("Status report completed in " + (long)DateTime.Now.Subtract(ping).TotalMilliseconds + "ms.");
                         return;
                     case "rems":
@@ -205,21 +207,6 @@ namespace Support_Bot
                                 pplMSG[msg.Author.Id] = msg.Content;
                             return;
                         }
-            /*if (msg.Content.ToLowerInvariant().Contains("portforward"))
-            {
-                if (!IsRepeating(msg.Author, context.Channel, new string[] { "portforward" }))
-                    await context.Channel.SendMessageAsync("Portforwarding differs between routers. Please google how to portforward for your specific router. Please also remember unturned uses **ONLY** the 2 ports above the one you chose. So if you chose port 27015, forward ports 27016 and 27017. (UDP Protocol)");
-            }
-            else if (msg.Content.ToLowerInvariant().Contains("upnp"))
-            {
-                if (!IsRepeating(msg.Author, context.Channel, new string[] { "upnp" }))
-                    await context.Channel.SendMessageAsync("UPnP is unstable in USO. If it does not work for you please restart USO or make sure UPnP is enabled in your router. If it still doesn't work, please keep trying or manually portforward.");
-            }
-            else if (msg.Content.ToLowerInvariant().Contains("help") || msg.Content.ToLowerInvariant().Contains("not working"))
-            {
-                if (!IsRepeating(msg.Author, context.Channel, new string[] { "help", "not working" }))
-                    await context.Channel.SendMessageAsync("Please be more specific. We cannot help you if you are not specific on what your issue is.");
-            }*/
         }
 
         private bool IsRepeating(SocketUser Author, ISocketMessageChannel Channel, string[] Keyword)
