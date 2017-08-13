@@ -37,16 +37,8 @@ namespace Support_Bot
             await _commands.InstallAsync(_client);
 
             await _client.SetGameAsync("by helping people. (^_^)");
-            _client.UserBanned += _client_UserBanned;
 
             await Task.Delay(-1);
-        }
-
-        private async Task _client_UserBanned(SocketUser user, SocketGuild server)
-        {
-            var chan = server.TextChannels.First();
-            await chan.SendMessageAsync(user.Mention + " has been banned from the server!");
-            
         }
     }
 
@@ -163,6 +155,36 @@ namespace Support_Bot
                         }
                         else
                             await author.SendMessageAsync("The server is not registered and has no messages :thinking:");
+                        return;
+                    case "status":
+                        var ping = DateTime.Now;
+                        await context.Channel.SendMessageAsync("Status report completed in " + (long)DateTime.Now.Subtract(ping).TotalMilliseconds + "ms.");
+                        return;
+                    case "rems":
+                        if (server == null)
+                            await context.Channel.SendMessageAsync("Wow m8, well done. Trying to remove something that is not even added :rolling_eyes:");
+                        else
+                        {
+                            config.Servers.Remove(server);
+                            await context.Channel.SendMessageAsync("Removed m8. I am finally free from the server.");
+                        }
+                        config.SaveJson();
+                        return;
+                    case "remk":
+                    case "remm":
+                        if (server == null)
+                            await context.Channel.SendMessageAsync("m8, this server is not even added. What are you trying to do? (>_>)");
+                        else
+                        {
+                            var mess = server.Messages.Find(k => k.ValidKeyWords.Contains(command[1]));
+                            if (mess == null)
+                                await context.Channel.SendMessageAsync("I feel ashamed of you m8. You keep doing the same mistake!");
+                            else
+                            {
+                                server.Messages.Remove(mess);
+                                await context.Channel.SendMessageAsync("Removed the message... Hope it was what you wanted, because you cant go back now.");
+                            }
+                        }
                         return;
                 }
             }
