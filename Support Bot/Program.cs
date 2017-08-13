@@ -167,6 +167,7 @@ namespace Support_Bot
                     case "status":
                         var ping = DateTime.Now;
                         await msg.DeleteAsync();
+                        await context.Channel.SendMessageAsync("----------- Support bot V1.2 status report -----------\nPing: " + (long)DateTime.Now.Subtract(ping).TotalMilliseconds + "ms.\nRunning on " + Environment.OSVersion + ".\nHave " + server.Messages.Count + " messages for this server.\n----------- Support bot V1.2 status report -----------");
                         return;
                     case "rems":
                         await msg.DeleteAsync();
