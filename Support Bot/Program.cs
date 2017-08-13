@@ -8,6 +8,9 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Linq;
 using System.Collections.Generic;
+using System.Management;
+using System.Diagnostics;
+using System.Net;
 
 namespace Support_Bot
 {
@@ -44,6 +47,7 @@ namespace Support_Bot
 
     public class CommandHandler
     {
+        private List<ulong> muted = new List<ulong>();
         private Dictionary<ulong, string> pplMSG = new Dictionary<ulong, string>();
         private DiscordSocketClient _client;
         private CommandService _cmds;
@@ -61,7 +65,7 @@ namespace Support_Bot
         private async Task HandleCommandAsync(SocketMessage s)
         {
             var msg = s as SocketUserMessage;
-            if (msg == null || msg.Author.IsBot /*|| msg.Author.Id == 181418012400812032*/)
+            if (msg == null || msg.Author.IsBot || muted.Contains(msg.Author.Id))
                 return;
             
             var context = new SocketCommandContext(_client, msg);
@@ -77,6 +81,7 @@ namespace Support_Bot
                 switch (command[0].ToLower())
                 {
                     case "adds":
+                        await msg.DeleteAsync();
                         if (server == null)
                         {
                             config.Servers.Add(new ServerSampleMessages() { ServerID = context.Guild.Id });
@@ -87,6 +92,7 @@ namespace Support_Bot
                         config.SaveJson();
                         return;
                     case "addm":
+                        await msg.DeleteAsync();
                         if (server != null)
                         {
                             var messig = server.Messages.Find(k => k.ValidKeyWords.Contains(command[1]));
@@ -106,6 +112,7 @@ namespace Support_Bot
                         config.SaveJson();
                         return;
                     case "addk":
+                        await msg.DeleteAsync();
                         if (server != null)
                         {
                             var messig = server.Messages.Find(k => k.ValidKeyWords.Contains(command[1]));
@@ -127,6 +134,7 @@ namespace Support_Bot
                         config.SaveJson();
                         return;
                     case "details":
+                        await msg.DeleteAsync();
                         if (server != null)
                         {
                             if (server.Messages.Count == 0)
@@ -158,11 +166,10 @@ namespace Support_Bot
                         return;
                     case "status":
                         var ping = DateTime.Now;
-                        await context.Channel.SendMessageAsync("----------- Support bot V1.1 status report -----------");
-                        await context.Channel.SendMessageAsync("Ping: " + (long)DateTime.Now.Subtract(ping).TotalMilliseconds + "ms.\nRunning on " + Environment.OSVersion + ".\nHave " + server.Messages.Count + " messages for this server.\n----------- Support bot V1.1 status report -----------");
-                        await context.Channel.SendMessageAsync("Status report completed in " + (long)DateTime.Now.Subtract(ping).TotalMilliseconds + "ms.");
+                        await msg.DeleteAsync();
                         return;
                     case "rems":
+                        await msg.DeleteAsync();
                         if (server == null)
                             await context.Channel.SendMessageAsync("Wow m8, well done. Trying to remove something that is not even added :rolling_eyes:");
                         else
@@ -174,6 +181,7 @@ namespace Support_Bot
                         return;
                     case "remk":
                     case "remm":
+                        await msg.DeleteAsync();
                         if (server == null)
                             await context.Channel.SendMessageAsync("m8, this server is not even added. What are you trying to do? (>_>)");
                         else
@@ -187,6 +195,89 @@ namespace Support_Bot
                                 await context.Channel.SendMessageAsync("Removed the message... Hope it was what you wanted, because you cant go back now.");
                             }
                         }
+                        config.SaveJson();
+                        return;
+                    case "shutdown":
+                        await msg.DeleteAsync();
+                        await context.Channel.SendMessageAsync("Shutting down. Bye.");
+                        Environment.Exit(0);
+                        return;
+                    case "google":
+                        await msg.DeleteAsync();
+                        var search = command.ToList();
+                        search.Remove(command[0]);
+                        var url = string.Format("https://www.google.es/search?q={0}", WebUtility.UrlEncode(string.Join(" ", search)));
+                        HttpWebRequest req = WebRequest.CreateHttp(url);
+                        await context.Channel.SendMessageAsync("Result: " + req.GetResponse().ResponseUri);
+                        return;
+                    case "rage":
+                        await msg.DeleteAsync();
+                        await context.Channel.SendFileAsync(@"C:\Users\vpastor\Downloads\REEEE.gif", "REEEEEEEEEEE");
+                        return;
+                    case "mute":
+                        await msg.DeleteAsync();
+                        var user = context.Guild.Users.ToList().Find(k => k.Username.ToLowerInvariant().Contains(command[1].ToLowerInvariant()));
+                        if (user == null && ulong.TryParse(command[1], out ulong ID))
+                            user = context.Guild.GetUser(ID);
+                        if (user != null)
+                        {
+                            muted.Add(user.Id);
+                            await context.Channel.SendMessageAsync("All of " + user.Mention + "'s messages will now be ignored.");
+                        }
+                        else
+                            await context.Channel.SendMessageAsync("User not found, you sure that's a user in this server? :thinking:");
+                        return;
+                    case "unmute":
+                        await msg.DeleteAsync();
+                        user = context.Guild.Users.ToList().Find(k => k.Username.ToLowerInvariant().Contains(command[1].ToLowerInvariant()));
+                        if (user == null && ulong.TryParse(command[1], out ID))
+                            user = context.Guild.GetUser(ID);
+                        if (user != null)
+                        {
+                            if (!muted.Contains(user.Id))
+                                await context.Channel.SendMessageAsync("User is not muted, what are you doing?");
+                            else
+                            {
+                                muted.Remove(user.Id);
+                                await context.Channel.SendMessageAsync(user.Mention + "'s messages will not be ignored anymore.");
+                            }
+                        }
+                        else
+                            await context.Channel.SendMessageAsync("User not found, you sure that's a user in this server? :thinking:");
+                        return;
+                    case "purge":
+                        await msg.DeleteAsync();
+                        int deleted = 0;
+                        if (command.Length > 1)
+                        {
+                            user = context.Guild.Users.ToList().Find(k => k.Username.ToLowerInvariant().Contains(command[1].ToLowerInvariant()));
+                            if (user == null && ulong.TryParse(command[1], out ID))
+                                user = context.Guild.GetUser(ID);
+                            if (user != null)
+                            {
+                                var msgs = await context.Channel.GetMessagesAsync().Flatten();
+                                var item = msgs.Where(k => k.Author.Id == user.Id);
+                                await context.Channel.DeleteMessagesAsync(item);
+                                deleted = item.Count();
+                            }
+                        }
+                        else
+                        {
+                            var msgs = await context.Channel.GetMessagesAsync().Flatten();
+                            await context.Channel.DeleteMessagesAsync(msgs);
+                            deleted = msgs.Count();
+                        }
+                        var botms = await context.Channel.SendMessageAsync("Deleted " + deleted + " messages.");
+                        await Task.Delay(5000);
+                        await botms.DeleteAsync();
+                        return;
+                    case "udetails":
+                        await msg.DeleteAsync();
+                        user = context.Guild.Users.ToList().Find(k => k.Username.ToLowerInvariant().Contains(command[1].ToLowerInvariant()));
+                        if (user == null && ulong.TryParse(command[1], out ID))
+                            user = context.Guild.GetUser(ID);
+                        if (user != null)
+                            await context.Channel.SendMessageAsync(user.Mention + "'s details:\nUsername - " + user.Username + "\nNickname - " + ((user.Nickname == string.Empty || user.Nickname == null) ? "N/A" : user.Nickname) + "\nID - " + user.Id + "\nStatus - " + user.Status + "\nCustom Status/Playing - " + (user.Game.HasValue ? user.Game.Value.Name : "N/A") + "\nCreated - " + user.CreatedAt + "\nJoined - " + user.JoinedAt);
                         return;
                 }
             }
