@@ -57,6 +57,10 @@ namespace Persiafighter.Applications.Support_Bot
                     MSGS.Add("The plugin " + ss[32].Split('.')[0] + " had an issue in its code for when a player died. If this issue is common, please disable or remove the plugin as it is most likely broken" + "\n");
                 else if (s.Contains("MySql.Data.MySqlClient.MySqlException: Unable to connect to any of the specified MySQL hosts."))
                     MSGS.Add("The plugin " + ss[1] + " cannot connect to the MySQL server you specified. Make sure the mysql server exists and is online." + "\n");
+                else if (s.Contains("License key has not been setup"))
+                    MSGS.Add("The plugin " + ss[1].TrimStart('[').TrimEnd(']') + " did not get it's license key set up. Please check the config and make sure the license is added." + "\n");
+                else if (s.Contains("Error: Cant save player info, plugin hasn't initialized properly.") || s.Contains("Error: Cant load player info from DB, plugin hasn't initialized properly."))
+                    MSGS.Add("The plugin PlayerInfoLib tried tried to save or load player info, but it was not able to do this as it didn't load correctly.");
                 else
                     MSGS.Add("Unknown error: " + s + "\n");
             }
