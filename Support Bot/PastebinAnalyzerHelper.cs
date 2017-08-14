@@ -43,23 +43,26 @@ namespace Persiafighter.Applications.Support_Bot
                 else if (CurrentError != string.Empty)
                     CurrentError += s + " ";
             }
-            string FinalMSG = "Errors:\n";
+            List<string> MSGS = new List<string>() { "Errors:\n" };
             foreach (string s in errors.Distinct().ToList())
             {
                 List<string> ss = s.Split().ToList();
                 if (s.Contains("Could not find dependency:"))
-                    FinalMSG += "A library with name " + ss[5] + " is not found in your libraries folder for your server." + "\n";
+                    MSGS.Add("A library with name " + ss[5] + " is not found in your libraries folder for your server." + "\n");
                 else if (s.Contains("Invalid or outdated plugin assembly:"))
-                    FinalMSG += "A library with name " + ss[6] + " is in your plugins directory. Rocket complains about it as it doesn't recognize it as a plugin." + "\n";
+                    MSGS.Add("A library with name " + ss[6] + " is in your plugins directory. Rocket complains about it as it doesn't recognize it as a plugin." + "\n");
                 else if (s.Contains("Failed to generate an item with ID") || s.Contains("Failed to respawn an item with ID"))
-                    FinalMSG += "The spawn tables in your server are attempting to spawn an item with ID " + ss[8] + ", but said item does not exist in either unturned or a workshop mod." + "\n";
+                    MSGS.Add("The spawn tables in your server are attempting to spawn an item with ID " + ss[8] + ", but said item does not exist in either unturned or a workshop mod." + "\n");
                 else if (s.Contains("Error in MulticastDelegate PlayerDeath:"))
-                    FinalMSG += "The plugin " + ss[32].Split('.')[0] + " had an issue in its code for when a player died. If this issue is common, please disable or remove the plugin as it is most likely broken" + "\n";
+                    MSGS.Add("The plugin " + ss[32].Split('.')[0] + " had an issue in its code for when a player died. If this issue is common, please disable or remove the plugin as it is most likely broken" + "\n");
                 else if (s.Contains("MySql.Data.MySqlClient.MySqlException: Unable to connect to any of the specified MySQL hosts."))
-                    FinalMSG += "The plugin " + ss[1] + " cannot connect to the MySQL server you specified. Make sure the mysql server exists and is online." + "\n";
+                    MSGS.Add("The plugin " + ss[1] + " cannot connect to the MySQL server you specified. Make sure the mysql server exists and is online." + "\n");
                 else
-                    FinalMSG += "Unknown error: " + s + "\n";
+                    MSGS.Add("Unknown error: " + s + "\n");
             }
+            string FinalMSG = "";
+            foreach (string s in MSGS.Distinct())
+                FinalMSG += s;
             await context.Channel.SendMessageAsync(FinalMSG);
         }
     }

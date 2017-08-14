@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using Persiafighter.Applications.Support_Bot.Classes;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -206,7 +207,10 @@ namespace Persiafighter.Applications.Support_Bot
         public async void CommandRage(SocketCommandContext context)
         {
             await context.Message.DeleteAsync();
-            await context.Channel.SendFileAsync("http://i0.kym-cdn.com/photos/images/newsfeed/000/915/652/b49.gif", "REEEEEEEEEEE");
+            if (!File.Exists("rage.gif"))
+                using (var net = new WebClient())
+                    net.DownloadFile("http://i0.kym-cdn.com/photos/images/newsfeed/000/915/652/b49.gif", "rage.gif");
+            await context.Channel.SendFileAsync("rage.gif", "REEEEEEEEEEE");
         }
         
         public async void CommandMute(SocketCommandContext context, string User, List<ulong> muted)
@@ -285,7 +289,11 @@ namespace Persiafighter.Applications.Support_Bot
             }
             var botms = await context.Channel.SendMessageAsync("Deleted " + deleted + " messages.");
             await Task.Delay(5000);
-            await botms.DeleteAsync();
+            try
+            {
+                await botms.DeleteAsync();
+            }
+            catch { }
         }
 
         public async void CommandUserDetails(SocketCommandContext context, string User)
