@@ -6,7 +6,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{B3934132-6379-4382-8CAC-85585D84F6FC}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Support_Bot</RootNamespace>
+    <RootNamespace>Persiafighter.Applications.Support_Bot</RootNamespace>
     <AssemblyName>Support Bot</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -129,6 +129,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AdminCommands.cs" />
+    <Compile Include="CommandHandler.cs" />
+    <Compile Include="Configuration.cs" />
+    <Compile Include="PastebinAnalyzerHelper.cs" />
+    <Compile Include="PermissionsAttribute.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
