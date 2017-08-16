@@ -14,25 +14,29 @@ namespace Persiafighter.Applications.Support_Bot
 
         public async Task StartAsync()
         {
-            Configuration.EnsureExists();
-            _client = new DiscordSocketClient(new DiscordSocketConfig()
+            try
             {
-                LogLevel = LogSeverity.Verbose,
-                MessageCacheSize = 1000
-            });
+                Configuration.EnsureExists();
+                _client = new DiscordSocketClient(new DiscordSocketConfig()
+                {
+                    LogLevel = LogSeverity.Verbose,
+                    MessageCacheSize = 1000
+                });
 
-            _client.Log += (l)
-                => Console.Out.WriteLineAsync(l.ToString());
+                _client.Log += (l)
+                    => Console.Out.WriteLineAsync(l.ToString());
 
-            await _client.LoginAsync(TokenType.Bot, Configuration.Load().Token);
-            await _client.StartAsync();
+                await _client.LoginAsync(TokenType.Bot, Configuration.Load().Token);
+                await _client.StartAsync();
 
-            _commands = new CommandHandler();
-            await _commands.InstallAsync(_client);
+                _commands = new CommandHandler();
+                await _commands.InstallAsync(_client);
 
-            await _client.SetGameAsync("by helping people. (^_^)");
+                await _client.SetGameAsync("by helping people. (^_^)");
 
-            await Task.Delay(-1);
+                await Task.Delay(-1);
+            }
+            catch { }
         }
     }
 }

@@ -139,7 +139,6 @@
     <Compile Include="CommandHandler.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="PastebinAnalyzerHelper.cs" />
-    <Compile Include="PermissionsAttribute.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
