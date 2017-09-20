@@ -6,14 +6,15 @@ using System.IO;
 
 namespace Persiafighter.Applications.Support_Bot
 {
-    public class Configuration
+    public sealed class Configuration
     {
         [JsonIgnore]
         public static string FileName { get; private set; } = "config/configuration.json";
         public string Prefix { get; set; } = "/";
         public string Token { get; set; } = "";
         public List<ulong> Admins { get; set; } = new List<ulong>() { };
-        public List<ServerSampleMessages> Servers { get; set; } = new List<ServerSampleMessages>();
+        public bool AnalyzePastebins { get; set; } = false;
+        public List<PastebinErrors> Pastebins { get; set; } = new List<PastebinErrors>();
 
         public static void EnsureExists()
         {
@@ -34,19 +35,16 @@ namespace Persiafighter.Applications.Support_Bot
             }
             Console.WriteLine("Configuration Loaded");
         }
-        
         public void SaveJson()
         {
             string file = Path.Combine(AppContext.BaseDirectory, FileName);
             File.WriteAllText(file, ToJson());
         }
-        
         public static Configuration Load()
         {
             string file = Path.Combine(AppContext.BaseDirectory, FileName);
             return JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(file));
         }
-        
         public string ToJson()
             => JsonConvert.SerializeObject(this, Formatting.Indented);
     }
@@ -54,16 +52,10 @@ namespace Persiafighter.Applications.Support_Bot
 
 namespace Persiafighter.Applications.Support_Bot.Classes
 {
-    public class ServerSampleMessages
+    public sealed class PastebinErrors
     {
-        public ulong ServerID { get; set; } = 0;
-        public bool AnalyzePastebins { get; set; } = false;
-        public List<SampleMessages> Messages { get; set; } = new List<SampleMessages>();
-    }
-
-    public class SampleMessages
-    {
-        public List<string> ValidKeyWords { get; set; } = new List<string>();
-        public string Message { get; set; } = "";
+        public string Identifier { get; set; } = "";
+        public string Answer { get; set; } = "";
+        public int NameIndex { get; set; } = -1;
     }
 }

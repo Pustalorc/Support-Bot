@@ -1,9 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+VisualStudioVersion = 15.0.26730.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Support Bot", "Support Bot\Support Bot.csproj", "{B3934132-6379-4382-8CAC-85585D84F6FC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{02EDE6C5-397E-46A8-8FF8-195A810DF00A} = {02EDE6C5-397E-46A8-8FF8-195A810DF00A}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mind", "Mind\Mind.csproj", "{02EDE6C5-397E-46A8-8FF8-195A810DF00A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +20,15 @@ Global
 		{B3934132-6379-4382-8CAC-85585D84F6FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B3934132-6379-4382-8CAC-85585D84F6FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B3934132-6379-4382-8CAC-85585D84F6FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{02EDE6C5-397E-46A8-8FF8-195A810DF00A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{02EDE6C5-397E-46A8-8FF8-195A810DF00A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{02EDE6C5-397E-46A8-8FF8-195A810DF00A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02EDE6C5-397E-46A8-8FF8-195A810DF00A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2D4625C9-DC91-4923-8798-C7975118D00B}
 	EndGlobalSection
 EndGlobal
