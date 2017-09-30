@@ -10,9 +10,8 @@ namespace Persiafighter.Applications.Support_Bot
     {
         [JsonIgnore]
         public static string FileName { get; private set; } = "config/configuration.json";
-        public string Prefix { get; set; } = "/";
+        public string AdminCommandPrefix { get; set; } = "/";
         public string Token { get; set; } = "";
-        public List<ulong> Admins { get; set; } = new List<ulong>() { };
         public bool AnalyzePastebins { get; set; } = false;
         public List<PastebinErrors> Pastebins { get; set; } = new List<PastebinErrors>();
 
