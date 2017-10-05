@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#pragma warning disable CS4014
+using Discord;
 using Discord.Commands;
 using Discord.Rest;
 using Discord.WebSocket;
@@ -6,8 +7,10 @@ using Persiafighter.Applications.Support_Bot.Classes;
 using Persiafighter.Libraries.AI;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Runtime.ExceptionServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -16,21 +19,21 @@ namespace Persiafighter.Applications.Support_Bot
     public sealed class Entry
     {
         private static void Main(string[] args) =>
-            new Entry().StartAsync().GetAwaiter().GetResult();
+            new Entry().StartAsync(args).GetAwaiter().GetResult();
 
         private DiscordSocketClient _client;
         private Mind _mind = new Mind("DeezNutz");
-        private List<Declare> _undecidedquestions = new List<Declare>();
-        private List<Answer> _answeredquestions = new List<Answer>();
         private DateTime _start = DateTime.Now;
         private Random _rnd = new Random();
+        private string[] EntryArgs;
 
-        public async Task StartAsync()
+        public async Task StartAsync(string[] args)
         {
             try
             {
+                EntryArgs = args;
                 Configuration.EnsureExists();
-                _client = new DiscordSocketClient(new DiscordSocketConfig() { LogLevel = LogSeverity.Verbose, MessageCacheSize = 1000 });
+                _client = new DiscordSocketClient(new DiscordSocketConfig() { LogLevel = LogSeverity.Verbose, MessageCacheSize = 1000, DefaultRetryMode = RetryMode.AlwaysRetry });
                 _client.Log += (l) => Console.Out.WriteLineAsync(l.ToString());
 
                 await _client.LoginAsync(TokenType.Bot, Configuration.Load().Token);
@@ -40,6 +43,9 @@ namespace Persiafighter.Applications.Support_Bot
                 _client.MessageReceived += _client_MessageReceived;
                 _client.MessageUpdated += _client_MessageUpdated;
                 _client.MessageDeleted += _client_MessageDeleted;
+                _client.Ready += _client_Ready;
+
+                AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
                 await Task.Delay(-1);
             }
@@ -49,11 +55,35 @@ namespace Persiafighter.Applications.Support_Bot
             }
         }
 
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (e.IsTerminating)
+            {
+                try
+                {
+                    _client.LogoutAsync();
+                }
+                catch { }
+                Process.Start(AppDomain.CurrentDomain.FriendlyName, e.ExceptionObject.ToString());
+                Environment.Exit(0);
+            }
+        }
+
+        private async Task _client_Ready()
+        {
+            string crash = "CRASH!!!\n";
+            foreach (var s in EntryArgs)
+                crash += s + " ";
+
+            if (EntryArgs.Length != 0)
+                await _client.GetUser(181418012400812032).SendMessageAsync(crash);
+        }
+        
         private async Task _client_MessageDeleted(Cacheable<IMessage, ulong> arg1, ISocketMessageChannel arg2)
         {
             try
             {
-                if (arg1.Value.Author.IsBot || arg1.Value == null)
+                if (!arg1.HasValue || arg1.Value == null || arg1.Value.Author.IsBot)
                     return;
                 
                 if (string.Equals(arg2.Name, "bot-support", StringComparison.InvariantCultureIgnoreCase))
@@ -68,7 +98,7 @@ namespace Persiafighter.Applications.Support_Bot
         {
             try
             {
-                if (arg2.Author.IsBot || arg2 == null)
+                if (arg2 == null || arg2.Author.IsBot)
                     return;
                 
                 if (string.Equals(arg3.Name, "bot-support", StringComparison.InvariantCultureIgnoreCase))
@@ -145,34 +175,38 @@ namespace Persiafighter.Applications.Support_Bot
         {
             try
             {
-                var q = _undecidedquestions.Find(k => k.answer.MessageID == qid);
+                var config = Configuration.Load();
+                var q = config.UndecidedQuestions.Find(k => k.Answer.MessageID == qid);
+                var achan = _client.GetGuild(q.Answer.AnswerMSG.Guild).GetTextChannel(q.Answer.AnswerMSG.Channel);
+                var dchan = _client.GetGuild(q.DecisionMSG.Guild).GetTextChannel(q.DecisionMSG.Channel);
                 var answer = _mind.SearchAnswer(newques);
                 q.Question = newques;
                 if (answer != null)
                 {
                     if (answer.Similarity == 1)
                     {
-                        _undecidedquestions.Remove(q);
-                        await q.answer.AnswerMSG.ModifyAsync(k => k.Content = answer.Answer);
-                        await q.DecisionMSG.DeleteAsync();
-                        _answeredquestions.Add(q.answer);
+                        config.UndecidedQuestions.Remove(q);
+                        await (await achan.GetMessageAsync(q.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = answer.Answer);
+                        await (await dchan.GetMessageAsync(q.DecisionMSG.MSG)).DeleteAsync();
+                        config.AnsweredQuestions.Add(q.Answer);
                     }
                     else if (answer.Similarity > (double)0.5)
                     {
-                        await q.DecisionMSG.ModifyAsync(k => k.Content = "A possible answer was found, please specify if it's good with *y <index>, *d <index>, or *a <index> \"<answer>\". Here are the details:\nAnswer: " + answer.Answer + "\nQuestion: " + answer.Phrase + "\nSimilarity: " + (answer.Similarity * 100) + "%\nIndex: " + q.Index);
-                        await q.answer.AnswerMSG.ModifyAsync(k => k.Content = answer.Answer);
+                        await (await dchan.GetMessageAsync(q.DecisionMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = "A possible answer was found, please specify if it's good with *y <index>, *d <index>, or *a <index> \"<answer>\". Here are the details:\nAnswer: " + answer.Answer + "\nQuestion: " + answer.Phrase + "\nSimilarity: " + (answer.Similarity * 100) + "%\nIndex: " + q.Index);
+                        await (await achan.GetMessageAsync(q.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = answer.Answer);
                     }
                     else
                     {
-                        await q.DecisionMSG.ModifyAsync(k => k.Content = "This possible question requires an answer. To discard it use *d <index>, otherwise answer it with *a <index> \"<answer>\"\nQuestion: " + newques + "\nIndex: " + q.Index);
-                        await q.answer.AnswerMSG.ModifyAsync(k => k.Content = "I'm sorry, but I currently do not have an answer for you. Staff of this discord are currently trying to get you one, so please hold tight and check this message again in a few minutes.");
+                        await (await dchan.GetMessageAsync(q.DecisionMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = "This possible question requires an answer. To discard it use *d <index>, otherwise answer it with *a <index> \"<answer>\"\nQuestion: " + newques + "\nIndex: " + q.Index);
+                        await (await achan.GetMessageAsync(q.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = "I'm sorry, but I currently do not have an answer for you. Staff of this discord are currently trying to get you one, so please hold tight and check this message again in a few minutes.");
                     }
                 }
                 else
                 {
-                    await q.DecisionMSG.ModifyAsync(k => k.Content = "This possible question requires an answer. To discard it use *d <index>, otherwise answer it with *a <index> \"<answer>\"\nQuestion: " + newques + "\nIndex: " + q.Index);
-                    await q.answer.AnswerMSG.ModifyAsync(k => k.Content = "I'm sorry, but I currently do not have an answer for you. Staff of this discord are currently trying to get you one, so please hold tight and check this message again in a few minutes.");
+                    await (await dchan.GetMessageAsync(q.DecisionMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = "This possible question requires an answer. To discard it use *d <index>, otherwise answer it with *a <index> \"<answer>\"\nQuestion: " + newques + "\nIndex: " + q.Index);
+                    await (await achan.GetMessageAsync(q.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = "I'm sorry, but I currently do not have an answer for you. Staff of this discord are currently trying to get you one, so please hold tight and check this message again in a few minutes.");
                 }
+                config.SaveJson();
             }
             catch (Exception ex)
             {
@@ -183,17 +217,27 @@ namespace Persiafighter.Applications.Support_Bot
         {
             try
             {
-                var q = _undecidedquestions.Find(k => k.answer.MessageID == questionID);
-                var a = _answeredquestions.Find(k => k.MessageID == questionID);
+                var config = Configuration.Load();
+                var q = config.UndecidedQuestions.Find(k => k.Answer.MessageID == questionID);
+                var a = config.AnsweredQuestions.Find(k => k.MessageID == questionID);
                 if (q != null)
                 {
-                    _undecidedquestions.Remove(q);
-                    await q.DecisionMSG.DeleteAsync();
+                    var dchan = _client.GetGuild(q.DecisionMSG.Guild).GetTextChannel(q.DecisionMSG.Channel);
+                    config.UndecidedQuestions.Remove(q);
+                    await (await dchan.GetMessageAsync(q.DecisionMSG.MSG)).DeleteAsync();
                     if (a == null)
-                        await q.answer.AnswerMSG.DeleteAsync();
+                    {
+                        var achan = _client.GetGuild(q.Answer.AnswerMSG.Guild).GetTextChannel(q.Answer.AnswerMSG.Channel);
+                        await (await achan.GetMessageAsync(q.Answer.AnswerMSG.MSG)).DeleteAsync();
+                    }
                 }
                 if (a != null)
-                    await a.AnswerMSG.DeleteAsync();
+                {
+                    config.AnsweredQuestions.Remove(a);
+                    var achan = _client.GetGuild(a.AnswerMSG.Guild).GetTextChannel(a.AnswerMSG.Channel);
+                    await (await achan.GetMessageAsync(a.AnswerMSG.MSG)).DeleteAsync();
+                }
+                config.SaveJson();
             }
             catch (Exception ex)
             {
@@ -204,36 +248,39 @@ namespace Persiafighter.Applications.Support_Bot
         {
             try
             {
+                var config = Configuration.Load();
                 var channel = _client.GetGuild(GuildID).TextChannels.FirstOrDefault(k => string.Equals(k.Name, "bot-decisions", StringComparison.InvariantCultureIgnoreCase));
                 var answer = _mind.SearchAnswer(question);
                 if (answer != null)
                 {
                     if (answer.Similarity == 1)
                     {
-                        await _client.GetGuild(GuildID).GetTextChannel(ChannID).SendMessageAsync(answer.Answer);
+                        var c = await _client.GetGuild(GuildID).GetTextChannel(ChannID).SendMessageAsync(answer.Answer);
+                        config.AnsweredQuestions.Add(new Answer(new Message(c.Id, ChannID, GuildID), qid));
                     }
                     else if (answer.Similarity >= (double)0.5)
                     {
-                        var i = _undecidedquestions.Count == 0 ? 0 : _undecidedquestions.Last().Index + 1;
+                        var i = config.UndecidedQuestions.Count == 0 ? 0 : config.UndecidedQuestions.Last().Index + 1;
                         var decision = await channel.SendMessageAsync("A possible answer was found, please specify if it's good with *y <index>, *d <index>, or *a <index> \"<answer>\". Here are the details:\nAnswer: " + answer.Answer + "\nQuestion: " + answer.Phrase + "\nSimilarity: " + (answer.Similarity * 100) + "%\nIndex: " + i);
                         var tempanswer = await _client.GetGuild(GuildID).GetTextChannel(ChannID).SendMessageAsync(answer.Answer);
-                        _undecidedquestions.Add(new Declare(i, question, qid, decision, tempanswer));
+                        config.UndecidedQuestions.Add(new Declare(i, question, qid, new Message(decision.Id, channel.Id, GuildID), new Message(tempanswer.Id, ChannID, GuildID)));
                     }
                     else
                     {
-                        var i = _undecidedquestions.Count == 0 ? 0 : _undecidedquestions.Last().Index + 1;
+                        var i = config.UndecidedQuestions.Count == 0 ? 0 : config.UndecidedQuestions.Last().Index + 1;
                         var decision = await channel.SendMessageAsync("This possible question requires an answer. To discard it use *d <index>, otherwise answer it with *a <index> \"<answer>\"\nQuestion: " + question + "\nIndex: " + i);
                         var tempanswer = await _client.GetGuild(GuildID).GetTextChannel(ChannID).SendMessageAsync("I'm sorry, but I currently do not have an answer for you. Staff of this discord are currently trying to get you one, so please hold tight and check this message again in a few minutes.");
-                        _undecidedquestions.Add(new Declare(i, question, qid, decision, tempanswer));
+                        config.UndecidedQuestions.Add(new Declare(i, question, qid, new Message(decision.Id, channel.Id, GuildID), new Message(tempanswer.Id, ChannID, GuildID)));
                     }
                 }
                 else
                 {
-                    var i = _undecidedquestions.Count == 0 ? 0 : _undecidedquestions.Last().Index + 1;
+                    var i = config.UndecidedQuestions.Count == 0 ? 0 : config.UndecidedQuestions.Last().Index + 1;
                     var decision = await channel.SendMessageAsync("This possible question requires an answer. To discard it use *d <index>, otherwise answer it with *a <index> \"<answer>\"\nQuestion: " + question + "\nIndex: " + i);
                     var tempanswer = await _client.GetGuild(GuildID).GetTextChannel(ChannID).SendMessageAsync("I'm sorry, but I currently do not have an answer for you. Staff of this discord are currently trying to get you one, so please hold tight and check this message again in a few minutes.");
-                    _undecidedquestions.Add(new Declare(i, question, qid, decision, tempanswer));
+                    config.UndecidedQuestions.Add(new Declare(i, question, qid, new Message(decision.Id, channel.Id, GuildID), new Message(tempanswer.Id, ChannID, GuildID)));
                 }
+                config.SaveJson();
             }
             catch (Exception ex)
             {
@@ -244,26 +291,28 @@ namespace Persiafighter.Applications.Support_Bot
         {
             try
             {
-                if (int.TryParse(index, out int i) && _undecidedquestions.Exists(k => k.Index == i))
+                var config = Configuration.Load();
+                if (int.TryParse(index, out int i) && config.UndecidedQuestions.Exists(k => k.Index == i))
                 {
-                    var q = _undecidedquestions.Find(k => k.Index == i);
-                    _undecidedquestions.Remove(q);
-                    await q.DecisionMSG.DeleteAsync();
-                    await q.answer.AnswerMSG.ModifyAsync(k => k.Content = "Your question has been discarded by staff. This could be due to it not being an actual question or them not wanting to answer it.");
-                    _answeredquestions.Add(q.answer);
+                    var q = config.UndecidedQuestions.Find(k => k.Index == i);
+                    config.UndecidedQuestions.Remove(q);
+                    await (await _client.GetGuild(q.DecisionMSG.Guild).GetTextChannel(q.DecisionMSG.Channel).GetMessageAsync(q.DecisionMSG.MSG)).DeleteAsync();
+                    await (await _client.GetGuild(q.Answer.AnswerMSG.Guild).GetTextChannel(q.Answer.AnswerMSG.Channel).GetMessageAsync(q.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = "Your question has been discarded by staff. This could be due to it not being an actual question or them not wanting to answer it.");
+                    config.AnsweredQuestions.Add(q.Answer);
                 }
                 else if (string.Equals(index, "all", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    List<RestUserMessage> msg = new List<RestUserMessage>();
-                    foreach (var g in _undecidedquestions.ToList())
+                    List<IMessage> msg = new List<IMessage>();
+                    foreach (var g in config.UndecidedQuestions.ToList())
                     {
-                        _undecidedquestions.Remove(g);
-                        msg.Add(g.DecisionMSG);
-                        await g.answer.AnswerMSG.ModifyAsync(k => k.Content = "Your question has been discarded by staff. This could be due to it not being an actual question or them not wanting to answer it.");
-                        _answeredquestions.Add(g.answer);
+                        config.UndecidedQuestions.Remove(g);
+                        msg.Add(await _client.GetGuild(g.DecisionMSG.Guild).GetTextChannel(g.DecisionMSG.Channel).GetMessageAsync(g.DecisionMSG.MSG));
+                        await (await _client.GetGuild(g.Answer.AnswerMSG.Guild).GetTextChannel(g.Answer.AnswerMSG.Channel).GetMessageAsync(g.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = "Your question has been discarded by staff. This could be due to it not being an actual question or them not wanting to answer it.");
+                        config.AnsweredQuestions.Add(g.Answer);
                     }
                     await _client.GetGuild(GuildID).TextChannels.FirstOrDefault(k => string.Equals(k.Name, "bot-decisions", StringComparison.InvariantCultureIgnoreCase)).DeleteMessagesAsync(msg);
                 }
+                config.SaveJson();
             }
             catch (Exception ex)
             {
@@ -274,25 +323,29 @@ namespace Persiafighter.Applications.Support_Bot
         {
             try
             {
-                if (_undecidedquestions.Exists(k => k.Index == index))
+                var config = Configuration.Load();
+                if (config.UndecidedQuestions.Exists(k => k.Index == index))
                 {
-                    var q = _undecidedquestions.Find(k => k.Index == index);
+                    var q = config.UndecidedQuestions.Find(k => k.Index == index);
                     if (string.IsNullOrEmpty(answer))
                     {
-                        _undecidedquestions.Remove(q);
-                        await q.DecisionMSG.DeleteAsync();
-                        await q.answer.AnswerMSG.ModifyAsync(k => k.Content = _mind.SearchAnswer(q.Question).Answer);
-                        _answeredquestions.Add(q.answer);
+                        var a = _mind.SearchAnswer(q.Question).Answer;
+                        _mind.AddAnswer(q.Question, a);
+                        config.UndecidedQuestions.Remove(q);
+                        await (await _client.GetGuild(q.DecisionMSG.Guild).GetTextChannel(q.DecisionMSG.Channel).GetMessageAsync(q.DecisionMSG.MSG)).DeleteAsync();
+                        await (await _client.GetGuild(q.Answer.AnswerMSG.Guild).GetTextChannel(q.Answer.AnswerMSG.Channel).GetMessageAsync(q.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = a);
+                        config.AnsweredQuestions.Add(q.Answer);
                     }
                     else
                     {
                         _mind.AddAnswer(q.Question, answer);
-                        _undecidedquestions.Remove(q);
-                        await q.DecisionMSG.DeleteAsync();
-                        await q.answer.AnswerMSG.ModifyAsync(k => k.Content = answer);
-                        _answeredquestions.Add(q.answer);
+                        config.UndecidedQuestions.Remove(q);
+                        await (await _client.GetGuild(q.DecisionMSG.Guild).GetTextChannel(q.DecisionMSG.Channel).GetMessageAsync(q.DecisionMSG.MSG)).DeleteAsync();
+                        await (await _client.GetGuild(q.Answer.AnswerMSG.Guild).GetTextChannel(q.Answer.AnswerMSG.Channel).GetMessageAsync(q.Answer.AnswerMSG.MSG) as SocketUserMessage).ModifyAsync(k => k.Content = answer);
+                        config.AnsweredQuestions.Add(q.Answer);
                     }
                 }
+                config.SaveJson();
             }
             catch (Exception ex)
             {
@@ -344,10 +397,11 @@ namespace Persiafighter.Applications.Support_Bot
                         await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync("----------- Support bot V2.0 status report -----------\nPing: " + (ulong)DateTime.Now.Subtract(d).TotalMilliseconds + "ms.\nRunning on " + Environment.OSVersion + ".\nHave been running for: " + DateTime.Now.Subtract(_start) + ".\n----------- Support bot V2.0 status report -----------");
                         break;
                     case "shutdown":
+                        await _client.LogoutAsync();
                         Environment.Exit(0);
                         break;
                     case "google":
-                        await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync(WebRequest.CreateHttp(string.Format("https://www.google.es/search?q={0}", WebUtility.UrlEncode(args[0]))).GetResponse().ResponseUri.ToString());
+                        await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync(WebRequest.CreateHttp(string.Format("https://www.google.com/search?q={0}", WebUtility.UrlEncode(args[0]))).GetResponse().ResponseUri.ToString());
                         break;
                     case "purge":
                         int deleted = 0;
@@ -461,25 +515,32 @@ namespace Persiafighter.Applications.Support_Bot
         }
         private async void UserCommands(string command, List<string> args, ulong ChannelID, ulong GuildID, SocketGuildUser caller)
         {
-            switch (command.ToLowerInvariant())
+            try
             {
-                case "flip":
-                    if (_rnd.Next(0, 101) > 50)
-                        await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync("You rolled heads.");
-                    else
-                        await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync("You rolled tails.");
-                    break;
-                case "udetails":
-                    try
-                    {
-                        await caller.SendMessageAsync("Your details:\nUsername - " + caller.Username + "\nNickname - " + (string.IsNullOrEmpty(caller.Nickname) ? "N/A" : caller.Nickname) + "\nID - " + caller.Id + "\nStatus - " + caller.Status + "\nCustom Status/Playing - " + (caller.Game.HasValue ? caller.Game.Value.Name : "N/A") + "\nCreated - " + caller.CreatedAt + "\nJoined - " + caller.JoinedAt);
-                    }
-                    catch (Exception)
-                    {
-                        if (!(await _client.GetGuild(GuildID).GetTextChannel(ChannelID).GetMessagesAsync().Flatten()).FirstOrDefault().Content.Contains("I am unable to dm you your details! Please enable public direct messaging, otherwise you can't use this command."))
-                            await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync(caller.Mention + " I am unable to dm you your details! Please enable public direct messaging, otherwise you can't use this command.");
-                    }
-                    break;
+                switch (command.ToLowerInvariant())
+                {
+                    case "flip":
+                        if (_rnd.Next(0, 101) > 50)
+                            await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync("You rolled heads.");
+                        else
+                            await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync("You rolled tails.");
+                        break;
+                    case "udetails":
+                        try
+                        {
+                            await caller.SendMessageAsync("Your details:\nUsername - " + caller.Username + "\nNickname - " + (string.IsNullOrEmpty(caller.Nickname) ? "N/A" : caller.Nickname) + "\nID - " + caller.Id + "\nStatus - " + caller.Status + "\nCustom Status/Playing - " + (caller.Game.HasValue ? caller.Game.Value.Name : "N/A") + "\nCreated - " + caller.CreatedAt + "\nJoined - " + caller.JoinedAt);
+                        }
+                        catch (Exception)
+                        {
+                            if (!(await _client.GetGuild(GuildID).GetTextChannel(ChannelID).GetMessagesAsync().Flatten()).FirstOrDefault().Content.Contains("I am unable to dm you your details! Please enable public direct messaging, otherwise you can't use this command."))
+                                await _client.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync(caller.Mention + " I am unable to dm you your details! Please enable public direct messaging, otherwise you can't use this command.");
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
             }
         }
         private void OwnerCommands(string command, List<string> args)
@@ -616,32 +677,6 @@ namespace Persiafighter.Applications.Support_Bot
             {
                 Console.WriteLine(ex);
             }
-        }
-    }
-    public sealed class Declare
-    {
-        public int Index;
-        public string Question;
-        public Answer answer;
-        public RestUserMessage DecisionMSG;
-
-        public Declare(int i, string q, ulong id, RestUserMessage decide, RestUserMessage a)
-        {
-            Index = i;
-            Question = q;
-            answer = new Answer(a, id);
-            DecisionMSG = decide;
-        }
-    }
-    public sealed class Answer
-    {
-        public ulong MessageID;
-        public RestUserMessage AnswerMSG;
-
-        public Answer(RestUserMessage a, ulong i)
-        {
-            AnswerMSG = a;
-            MessageID = i;
         }
     }
 }
