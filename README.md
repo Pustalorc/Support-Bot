@@ -6,4 +6,4 @@ Channels are forced to be:
 * To decide/answer unanswered questions from the chat above: bot-decisions
 * To analyze pastebins with logs and explain the errors: bot-pastebin-analyzer
 
-If you want to put the bot in your server, use this link: https://discordapp.com/oauth2/authorize?&client_id=346036944234610690&scope=bot&permissions=0
+If you want to put the bot in your server, download the code, compile it, and then host it yourself.
