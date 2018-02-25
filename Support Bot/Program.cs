@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Message = Pustalorc.Applications.Support_Bot.Classes.Message;
@@ -24,7 +23,7 @@ namespace Pustalorc.Applications.Support_Bot
 
         private static void Main(string[] args) =>
             new Entry().StartAsync(args).GetAwaiter().GetResult();
-        
+
         public async Task StartAsync(string[] args)
         {
             try
@@ -50,7 +49,7 @@ namespace Pustalorc.Applications.Support_Bot
                 Console.Write(ex);
             }
         }
-        
+
         private async Task _client_MessageDeleted(Cacheable<IMessage, ulong> arg1, ISocketMessageChannel arg2)
         {
             if (!arg1.HasValue || arg1.Value == null || arg1.Value.Author.IsBot)
@@ -84,13 +83,18 @@ namespace Pustalorc.Applications.Support_Bot
                 else
                     await AddToDecide(Context);
             }
-            else if (string.Equals(Context.Channel.Name, "general", StringComparison.InvariantCultureIgnoreCase) && (Context.Message.MentionedRoles.ToList().Exists(k => k.Name == SupporterRole ) || Context.Message.Content.Split().ToList().Exists(k => string.Equals(k, "help", StringComparison.InvariantCultureIgnoreCase) || SearchAnswer(Context.Message.Content).Similarity > (double)0.8) || MessageTagsHelper(Context)))
+            else if (string.Equals(Context.Channel.Name, "general", StringComparison.InvariantCultureIgnoreCase) && (Context.Message.MentionedRoles.ToList().Exists(k => k.Name == SupporterRole) || Context.Message.Content.Split().ToList().Exists(k => string.Equals(k, "help", StringComparison.InvariantCultureIgnoreCase) || SearchAnswer(Context.Message.Content).Similarity > (double)0.8) || MessageTagsHelper(Context)))
             {
                 await DeleteMessage(Context.Message);
-                SendMessage(Context.Message.Author.Mention + " please ask a full question with a tag to the helper role in #support or #support-2.", Context.Guild.Id, Context.Channel.Id, 5);
+                var schat1 = Context.Guild.TextChannels.ToList().Find(k => string.Equals(k.Name, "support", StringComparison.InvariantCultureIgnoreCase));
+                SendMessage(Context.Message.Author.Mention + " please ask a full question with a tag to the " + SupporterRole + " role in #support or #support-2.", Context.Guild.Id, Context.Channel.Id, 5);
+                await SendMessage(Context.Guild.Roles.FirstOrDefault(k => string.Equals(k.Name, SupporterRole, StringComparison.InvariantCultureIgnoreCase)).Mention + " " + Context.Message.Author.Mention + " needs your help! Their message is: " + Context.Message.Content, Context.Guild.Id, schat1.Id);
             }
             else if (string.Equals(Context.Channel.Name, "images", StringComparison.InvariantCultureIgnoreCase) && Context.Message.Attachments.Count == 0)
+            {
                 await DeleteMessage(Context.Message);
+                SendMessage(Context.Message.Author.Mention + " this channel is dedicated for files only (links do not count as images). Thank you.", Context.Guild.Id, Context.Channel.Id, 5);
+            }
             else if (string.Equals(Context.Channel.Name, "support", StringComparison.InvariantCultureIgnoreCase) || string.Equals(Context.Channel.Name, "support-2", StringComparison.InvariantCultureIgnoreCase))
             {
                 if (MessageTagsStaff(Context) && !MessageTagsHelper(Context))
@@ -103,40 +107,6 @@ namespace Pustalorc.Applications.Support_Bot
                 var a = SearchAnswer(Context.Message.Content);
                 if (a.Similarity > (double)0.8)
                     SendMessage(Context.Message.Author.Mention + ": " + a.Answer, Context.Guild.Id, Context.Channel.Id);
-            }
-            else if (string.Equals(Context.Channel.Name, "advertisements", StringComparison.InvariantCultureIgnoreCase))
-            {
-                var ValidIpAddressRegex = new Regex(@"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
-                var ValidHostnameRegex = new Regex(@"^(https:\/\/|http:\/\/)([a-zA-Z0-9-]+\.){0,5}[a-zA-Z0-9-][a-zA-Z0-9-]+\.[a-zA-Z]{2,64}?\/[a-zA-Z0-9-][a-zA-Z0-9-]+$");
-
-                if (Context.Message.Content.Split(' ').ToList().Exists(l => l.Split('\n').ToList().Exists(k => ValidIpAddressRegex.IsMatch(k) || ValidHostnameRegex.IsMatch(k)) && Context.Message.Content.Split(' ').Length > 1))
-                {
-                    var config = Learning.Load();
-                    if (config.AdvertCooldowns.ContainsKey(Context.Message.Author.Id))
-                    {
-                        var Cooldown = config.AdvertCooldowns[Context.Message.Author.Id];
-                        if (Cooldown > DateTime.Now)
-                        {
-                            await DeleteMessage(Context.Message);
-                            SendMessage(Context.Message.Author.Mention + " you cannot send any more advertisements today! Come back tomorrow!", Context.Guild.Id, Context.Channel.Id, 5);
-                        }
-                        else
-                        {
-                            config.AdvertCooldowns[Context.Message.Author.Id] = DateTime.Now.AddDays(1);
-                            config.SaveJson();
-                        }
-                    }
-                    else
-                    {
-                        config.AdvertCooldowns.Add(Context.Message.Author.Id, DateTime.Now.AddDays(1));
-                        config.SaveJson();
-                    }
-                }
-                else
-                {
-                    await DeleteMessage(Context.Message);
-                    SendMessage(Context.Message.Author.Mention + " your advertisement doesn't include an IP or a website, or it is too short. Please post it with an IP or a website and/or make it longer.", Context.Guild.Id, Context.Channel.Id, 5);
-                }
             }
         }
         private async Task<bool> HandleCommand(SocketCommandContext Context)
@@ -176,23 +146,14 @@ namespace Pustalorc.Applications.Support_Bot
                         arguments.RemoveRange(0, 2);
                         await SendMessage(string.Join(" ", arguments), guild, channel);
                         return true;
-                    case "clear":
+                    case "fix":
+                    case "Clear":
                         var config = Learning.Load();
-                        if (string.Equals(arguments[0], "warns", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            config.WarnedPeople.Clear();
-                            config.SaveJson();
-                        }
-                        else if (string.Equals(arguments[0], "advertcooldowns", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            config.AdvertCooldowns.Clear();
-                            config.SaveJson();
-                        }
-                        else if (string.Equals(arguments[0], "indecisions", StringComparison.InvariantCultureIgnoreCase))
-                        {
+                        //if (string.Equals(arguments[0], "indecisions", StringComparison.InvariantCultureIgnoreCase))
+                        //{
                             config.UndecidedQuestions.Clear();
                             config.SaveJson();
-                        }
+                        //}
                         await DeleteMessage(Context.Message);
                         return true;
                     case "set":
@@ -206,30 +167,24 @@ namespace Pustalorc.Applications.Support_Bot
 
                         await DeleteMessage(Context.Message);
                         return true;
+                    case "check":
+                        config = Learning.Load();
+                        foreach (var i in config.Answers.ToList())
+                        {
+                            var l = config.Answers.ToList();
+                            l.Remove(i);
+                            var sim = l.FindAll(k => CalculateSimilarity(i.Answer, k.Answer) > (double)0.8);
+                            if (sim.Count > 0)
+                            {
+
+                            }
+                        }
                 }
             }
             if (Context.Guild.Roles.FirstOrDefault(k => string.Equals(k.Name, StaffRole, StringComparison.InvariantCultureIgnoreCase)).Members.ToList().Exists(k => k.Id == Context.Message.Author.Id) && comm.StartsWith("/"))
             {
                 switch (comm.Substring(1).ToLowerInvariant())
                 {
-                    case "warn":
-                        if (arguments.Count >= 2)
-                        {
-                            var u = GetUser(arguments[0], Context.Guild.Id);
-                            if (u != null)
-                            {
-                                var config = Learning.Load();
-                                arguments.RemoveRange(0, 1);
-                                var reason = string.Join(" ", arguments);
-                                config.WarnedPeople.Add(new Warns() { ID = u.Id, Reason = reason });
-                                config.SaveJson();
-                                await SendMessage(u.Mention + " has been warned for: " + reason + ". This is their warn #" + config.WarnedPeople.Where(k => k.ID == u.Id).Count() + ".", Context.Guild.Id, Context.Guild.TextChannels.FirstOrDefault(k => string.Equals(k.Name, "warns", StringComparison.InvariantCultureIgnoreCase)).Id);
-                            }
-                            else
-                                await SendMessage("User " + arguments[0] + " not found.", Context.Guild.Id, Context.Channel.Id);
-                        }
-                        await DeleteMessage(Context.Message);
-                        return true;
                     case "status":
                         var d = DateTime.Now;
                         await ClientInstance.GetConnectionsAsync();
@@ -260,7 +215,7 @@ namespace Pustalorc.Applications.Support_Bot
                                     {
                                         var msgs = await Context.Channel.GetMessagesAsync(ammount).Flatten();
                                         var f = msgs.Where(k => k.Author.Id == u.Id);
-                                        await Context.Channel.DeleteMessagesAsync(msgs);
+                                        await Context.Channel.DeleteMessagesAsync(f);
                                         deleted = f.Count();
                                     }
                                     else
@@ -274,7 +229,7 @@ namespace Pustalorc.Applications.Support_Bot
                                         {
                                             var msgs = await Context.Channel.GetMessagesAsync(ammount).Flatten();
                                             var f = msgs.Where(k => k.Author.Id == u2.Id);
-                                            await Context.Channel.DeleteMessagesAsync(msgs);
+                                            await Context.Channel.DeleteMessagesAsync(f);
                                             deleted = f.Count();
                                         }
                                         else
@@ -292,7 +247,7 @@ namespace Pustalorc.Applications.Support_Bot
                                     {
                                         var msgs = await Context.Channel.GetMessagesAsync(ammount).Flatten();
                                         var f = msgs.Where(k => k.Author.Id == u.Id);
-                                        await Context.Channel.DeleteMessagesAsync(msgs);
+                                        await Context.Channel.DeleteMessagesAsync(f);
                                         deleted = f.Count();
                                     }
                                     else
@@ -311,7 +266,7 @@ namespace Pustalorc.Applications.Support_Bot
                                 {
                                     var msgs = await Context.Channel.GetMessagesAsync(100).Flatten();
                                     var f = msgs.Where(k => k.Author.Id == u.Id);
-                                    await Context.Channel.DeleteMessagesAsync(msgs);
+                                    await Context.Channel.DeleteMessagesAsync(f);
                                     deleted = f.Count();
                                 }
                                 else if (int.TryParse(arguments[0], out int ammount))
@@ -330,7 +285,7 @@ namespace Pustalorc.Applications.Support_Bot
                                 {
                                     var msgs = await Context.Channel.GetMessagesAsync(100).Flatten();
                                     var f = msgs.Where(k => k.Author.Id == u.Id);
-                                    await Context.Channel.DeleteMessagesAsync(msgs);
+                                    await Context.Channel.DeleteMessagesAsync(f);
                                     deleted = f.Count();
                                 }
                                 else
@@ -373,61 +328,6 @@ namespace Pustalorc.Applications.Support_Bot
                         return true;
                     case "y":
                         await Answer(ulong.Parse(arguments[0]));
-                        await DeleteMessage(Context.Message);
-                        return true;
-                }
-            }
-            if (comm.StartsWith("!"))
-            {
-                switch (comm.Substring(1).ToLowerInvariant())
-                {
-                    case "udetails":
-                        try
-                        {
-                            var caller = GetUser(Context.Message.Author.Id.ToString(), Context.Guild.Id);
-                            await SendDirectMessage("Your details:\nUsername - " + caller.Username + "\nNickname - " + (string.IsNullOrEmpty(caller.Nickname) ? "N/A" : caller.Nickname) + "\nID - " + caller.Id + "\nStatus - " + caller.Status + "\nCustom Status/Playing - " + (caller.Game.HasValue ? caller.Game.Value.Name : "N/A") + "\nCreated - " + caller.CreatedAt + "\nJoined - " + caller.JoinedAt, caller);
-                        }
-                        catch
-                        {
-                            if (!(await Context.Channel.GetMessagesAsync().Flatten()).FirstOrDefault().Content.Contains("I am unable to dm you your details! Please enable public direct messaging, otherwise you can't use this command."))
-                            {
-                                var a = await SendMessage(Context.Message.Author.Mention + " I am unable to dm you your details! Please enable public direct messaging, otherwise you can't use this command.", Context.Guild.Id, Context.Channel.Id);
-                                await Task.Delay(5000);
-                                await DeleteMessage(a);
-                            }
-                        }
-                        await DeleteMessage(Context.Message);
-                        return true;
-                    case "google":
-                        try
-                        {
-                            await SendDirectMessage(string.Format("https://www.google.com/search?q={0}", WebUtility.UrlEncode(string.Join(" ", arguments))), Context.Message.Author);
-                        }
-                        catch
-                        {
-                            if (!(await Context.Channel.GetMessagesAsync().Flatten()).FirstOrDefault().Content.Contains("I am unable to dm you your google search! Please enable public direct messaging, otherwise you can't use this command."))
-                            {
-                                var a = await SendMessage(Context.Message.Author.Mention + " I am unable to dm you your google search! Please enable public direct messaging, otherwise you can't use this command.", Context.Guild.Id, Context.Channel.Id);
-                                await Task.Delay(5000);
-                                await DeleteMessage(a);
-                            }
-                        }
-                        await DeleteMessage(Context.Message);
-                        return true;
-                    case "psearch":
-                        try
-                        {
-                            await SendDirectMessage(string.Format("https://hub.rocketmod.net/?s={0}", WebUtility.UrlEncode(string.Join(" ", arguments))), Context.Message.Author);
-                        }
-                        catch
-                        {
-                            if (!(await Context.Channel.GetMessagesAsync().Flatten()).FirstOrDefault().Content.Contains("I am unable to dm you your google search! Please enable public direct messaging, otherwise you can't use this command."))
-                            {
-                                var a = await SendMessage(Context.Message.Author.Mention + " I am unable to dm you your google search! Please enable public direct messaging, otherwise you can't use this command.", Context.Guild.Id, Context.Channel.Id);
-                                await Task.Delay(5000);
-                                await DeleteMessage(a);
-                            }
-                        }
                         await DeleteMessage(Context.Message);
                         return true;
                 }

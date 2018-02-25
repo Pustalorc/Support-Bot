@@ -50,9 +50,7 @@ namespace Pustalorc.Applications.Support_Bot
         public static string FileName { get; private set; } = "config/MemoryAndLearning.json";
         public List<Answered> Answers { get; set; } = new List<Answered>();
         public List<string> NotQuestions { get; set; } = new List<string>();
-        public List<Warns> WarnedPeople { get; set; } = new List<Warns>();
         public List<Deciding> UndecidedQuestions { get; set; } = new List<Deciding>();
-        public Dictionary<ulong, DateTime> AdvertCooldowns { get; set; } = new Dictionary<ulong, DateTime>();
 
         public static void EnsureExists()
         {
@@ -93,11 +91,6 @@ namespace Pustalorc.Applications.Support_Bot.Classes
     {
         public double Similarity;
         public string Phrase, Answer;
-    }
-    public sealed class Warns
-    {
-        public ulong ID { get; set; }
-        public string Reason { get; set; }
     }
     public sealed class Deciding
     {
