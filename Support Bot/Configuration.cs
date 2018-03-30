@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Discord;
+using Newtonsoft.Json;
 using Pustalorc.Applications.Support_Bot.Classes;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,11 @@ namespace Pustalorc.Applications.Support_Bot
         [JsonIgnore]
         public static string FileName { get; private set; } = "config/configuration.json";
         public string Token { get; set; } = "";
+        public ulong OwnerID { get; set; } = 0;
+        public ulong GeneralChannel { get; set; } = 0;
+        public ulong SupportChannel { get; set; } = 0;
+        public ulong SupporterRole { get; set; } = 0;
+        public ulong StaffRole { get; set; } = 0;
 
         public static void EnsureExists()
         {
@@ -23,10 +29,9 @@ namespace Pustalorc.Applications.Support_Bot
 
                 var config = new Configuration();
 
-                Console.WriteLine("Please enter your token: ");
-                string token = Console.ReadLine();
+                Console.WriteLine("Please enter your discord bot token: ");
+                config.Token = Console.ReadLine();
 
-                config.Token = token;
                 config.SaveJson();
             }
             Console.WriteLine("Configuration Loaded");
@@ -49,8 +54,8 @@ namespace Pustalorc.Applications.Support_Bot
         [JsonIgnore]
         public static string FileName { get; private set; } = "config/MemoryAndLearning.json";
         public List<Answered> Answers { get; set; } = new List<Answered>();
-        public List<string> NotQuestions { get; set; } = new List<string>();
         public List<Deciding> UndecidedQuestions { get; set; } = new List<Deciding>();
+        public List<string> NotQuestions { get; set; } = new List<string>();
 
         public static void EnsureExists()
         {
@@ -96,32 +101,12 @@ namespace Pustalorc.Applications.Support_Bot.Classes
     {
         public string Question { get; set; }
         public ulong ID { get; set; }
-        public string Mention { get; set; }
-        public Message DecidingMessage { get; set; }
-        public Message NotFoundMessage { get; set; }
-
-        public Deciding() { }
-        public Deciding(string q, ulong id, string mention, Message dms, Message nfm)
-        {
-            Question = q;
-            ID = id;
-            Mention = mention;
-            DecidingMessage = dms;
-            NotFoundMessage = nfm;
-        }
     }
-    public sealed class Message
+    public sealed class MSG
     {
-        public ulong MessageID { get; set; }
-        public ulong ChannelID { get; set; }
-        public ulong GuildID { get; set; }
-
-        public Message() { }
-        public Message(ulong mid, ulong cid, ulong gid)
-        {
-            MessageID = mid;
-            ChannelID = cid;
-            GuildID = gid;
-        }
+        public Deciding Decision;
+        public IMessage msg;
+        public ulong Channel;
+        public ulong Guild;
     }
 }
