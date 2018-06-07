@@ -16,9 +16,10 @@ namespace Pustalorc.Applications
     {
         private DiscordSocketClient ClientInstance;
         private Timer Timer = null;
-        private Timer Timer2 = null;
         private bool FirstStart = false;
         private ushort Requests = 0;
+        private List<AntiSpam> Spam = new List<AntiSpam>();
+        private List<ulong> WarnedSpammers = new List<ulong>();
 
         private static void Main(string[] args) =>
             new SupportBot().StartAsync(args).GetAwaiter().GetResult();
@@ -28,24 +29,23 @@ namespace Pustalorc.Applications
             try
             {
                 FirstStart = Configuration.EnsureExists();
+                Learning.EnsureExists();
 
                 ClientInstance = new DiscordSocketClient(new DiscordSocketConfig()
                 {
                     LogLevel = LogSeverity.Verbose,
                     MessageCacheSize = 1000,
-                    DefaultRetryMode = RetryMode.AlwaysRetry
+                    DefaultRetryMode = RetryMode.AlwaysFail
                 });
 
                 ClientInstance.Log += (l) => Console.Out.WriteLineAsync(l.ToString());
+                ClientInstance.MessageReceived += async (o) => await HandleMessage(new SocketCommandContext(ClientInstance, o as SocketUserMessage));
+                ClientInstance.ReactionAdded += async (a, i, o) => await HandleReaction(o);
+                ClientInstance.Ready += HandleReady;
 
                 await ClientInstance.LoginAsync(TokenType.Bot, Configuration.Load().Token);
                 await ClientInstance.StartAsync();
                 await ClientInstance.SetGameAsync("Stuff, prob memes");
-
-                ClientInstance.MessageReceived += async (o) => await HandleMessage(new SocketCommandContext(ClientInstance, o as SocketUserMessage), false);
-                ClientInstance.MessageUpdated += async (a, o, u) => await HandleMessage(new SocketCommandContext(ClientInstance, o as SocketUserMessage), true);
-                ClientInstance.ReactionAdded += async (a, i, o) => await HandleReaction(o);
-                ClientInstance.Ready += HandleReady;
 
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
@@ -95,36 +95,33 @@ namespace Pustalorc.Applications
             
             if (Timer == null)
             {
-                Timer = new Timer(3600000);
-                Timer.Elapsed += (o, p) =>
+                Timer = new Timer(conf.SupportRequestClearMilliseconds);
+                Timer.Elapsed += async (o, p) =>
                 {
-                    ClientInstance.GetConnectionsAsync();
+                    try
+                    {
+                        if (Requests > 0)
+                        {
+                            var chann = guild.GetTextChannel(conf.SupportRequestsChannel);
+                            var msgs = await chann.GetMessagesAsync(Requests).Flatten();
+                            msgs.ToList().RemoveAll(k => k.Author.IsBot);
+                            await chann.DeleteMessagesAsync(msgs);
+                        }
+
+                        if (Requests != 0)
+                            Requests = 0;
+                    }
+                    catch { }
                 };
                 Timer.Start();
             }
-
-            if (Timer2 == null)
-            {
-                Timer2 = new Timer(conf.SupportRequestClearMilliseconds);
-                Timer2.Elapsed += async (o, p) =>
-                {
-                    if (Requests > 0)
-                    {
-                        var chann = guild.GetTextChannel(conf.SupportRequestsChannel);
-                        var msgs = await chann.GetMessagesAsync(Requests).Flatten();
-                        await chann.DeleteMessagesAsync(msgs);
-                        Requests = 0;
-                    }
-                };
-                Timer2.Start();
-            }
         }
 
-        private async Task HandleMessage(SocketCommandContext Context, bool IsUpdate)
+        private async Task HandleMessage(SocketCommandContext Context)
         {
             if (Context == null || Context.Message.Author.IsBot || Context.IsPrivate)
                 return;
-
+            
             if (IsCommand(Context.Message.Content))
             {
                 HandleCommand(Context);
@@ -133,7 +130,39 @@ namespace Pustalorc.Applications
 
             var config = Configuration.Load();
 
-            if (Context.Channel.Id == config.SupportChannel)
+            if (IsSpam(Context.Message, out string res) &&
+                !HasRole(config.SupporterRole, Context.Message.Author.Id, Context.Guild.Id) &&
+                !HasRole(config.StaffRole, Context.Message.Author.Id, Context.Guild.Id))
+            {
+                if (WarnedSpammers.Exists(k => k == Context.Message.Author.Id))
+                {
+                    await Context.Guild.AddBanAsync(Context.Message.Author, 7, "Spamming. Anti-Spam ban.", new RequestOptions() { AuditLogReason = "Anti-spam ban" });
+                    await SendMessage(Context.Message.Author.Mention + " banned for spamming.", Context.Guild.Id, Context.Channel.Id);
+                    await SendMessage("Anti-spam triggered on " + Context.Message.Author.Id + ".\nReason: " + (res ?? "N/A") + ".\nMessage sent: " + Context.Message.Content + ".\nMessage ID (For discord reports if needed):" + Context.Message.Id + ".\nAction: Banned.", Context.Guild.Id, config.LogChannel);
+                    WarnedSpammers.RemoveAll(k => k == Context.Message.Author.Id);
+                }
+                else
+                {
+                    await SendMessage(Context.Message.Author.Mention + " cease your spam immediately. Failure to do so will result in a ban. This is your first **AND FINAL** warning.", Context.Guild.Id, Context.Channel.Id);
+                    await SendMessage("Anti-spam triggered on " + Context.Message.Author.Id + ".\nReason: " + (res ?? "N/A") + ".\nMessage sent: " + Context.Message.Content + ".\nMessage ID (For discord reports if needed):" + Context.Message.Id + ".\nAction: Warned.", Context.Guild.Id, config.LogChannel);
+                    WarnedSpammers.Add(Context.Message.Author.Id);
+                }
+
+                return;
+            }
+
+            if (Context.Channel.Id == config.GeneralChannel)
+            {
+                if (Context.Message.MentionedRoles.ToList().Exists(k => k.Id == config.SupporterRole))
+                {
+                    await DeleteMessage(Context.Message);
+                    await SendMessage(Context.Message.Author.Mention + ", please do not tag the supporter role in this channel. Only tag them in <#" + config.SupportChannel + ">. Thank you in advance.", Context.Guild.Id, Context.Channel.Id);
+                }
+                var learning = Learning.Load();
+                if (learning.NoHelp.Exists(k => CalculateSimilarity(Context.Message.Content, k) > 0.80))
+                    await SendMessage(Context.Message.Author.Mention + ", please don't ask for help in this channel.\nWe do not provide help/support in this channel since it is meant for talking about general stuff.\n If you want help, go in <#" + config.SupportChannel + "> and ask there for help after tagging the support role.\n\nThank you in advance.", Context.Guild.Id, Context.Channel.Id);
+            }
+            else if (Context.Channel.Id == config.SupportChannel)
             {
                 if (!HasRole(config.StaffRole, Context.Message.Author.Id, Context.Guild.Id) && (config.SupporterAntiTagBypass && !HasRole(config.SupporterRole, Context.Message.Author.Id, Context.Guild.Id)))
                 {
@@ -144,8 +173,12 @@ namespace Pustalorc.Applications
                         var msg = Context.Message.Content.Split().ToList();
 
                         foreach (var s in msg.ToList())
+                        {
                             if (s.StartsWith("<@"))
                                 msg.Remove(s);
+                            else if (string.Equals(s, "@everyone"))
+                                msg.Remove(s);
+                        }
 
                         if (msg.Count == 0)
                             return;
@@ -239,6 +272,24 @@ namespace Pustalorc.Applications
                     await guild.GetUser(Reaction.Message.Value.Author.Id).AddRoleAsync(guild.GetRole(conf.RequestBannedRole));
 
                     await SendMessage("A successful vote (or admin vote) was passed to ban " + Reaction.Message.Value.Author.Mention + " from support requests.\nThe help topic is: \n" + Reaction.Message.Value.Content, ClientInstance.Guilds.ToList()[0].Id, conf.LogChannel);
+                }
+            }
+            else if (Reaction.Channel.Id == conf.GeneralChannel)
+            {
+                if (Reaction.Emote.Name.ToLowerInvariant() == conf.RequestDownvoteEmote.ToLowerInvariant() &&
+                       (HasRole(conf.StaffRole, Reaction.UserId, ClientInstance.Guilds.ToList()[0].Id) ||
+                       HasRole(conf.SupporterRole, Reaction.UserId, ClientInstance.Guilds.ToList()[0].Id)))
+                {
+                    var learning = Learning.Load();
+
+                    if (learning.NoHelp.Exists(k => CalculateSimilarity(Reaction.Message.Value.Content, k) > 0.80))
+                        return;
+
+                    learning.NoHelp.Add(Reaction.Message.Value.Content);
+                    learning.SaveJson();
+
+                    await SendMessage(Reaction.Message.Value.Author.Mention + ", please don't ask for help in this channel.\nWe do not provide help/support in this channel since it is meant for talking about general stuff.\n If you want help, go in <#" + conf.SupportChannel + "> and ask there for help after tagging the support role.\n\nThank you in advance.", ClientInstance.Guilds.ToList()[0].Id, Reaction.Message.Value.Channel.Id);
+                    await SendMessage("New message added to anti-general-help list: \n" + Reaction.Message.Value.Content, ClientInstance.Guilds.ToList()[0].Id, conf.LogChannel);
                 }
             }
         }
@@ -411,6 +462,7 @@ namespace Pustalorc.Applications
             try
             {
                 var msg = await ClientInstance.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync(Message);
+
                 if (Delete == 0)
                     return msg;
                 else
@@ -425,6 +477,7 @@ namespace Pustalorc.Applications
                 try
                 {
                     var msg = await ClientInstance.GetGuild(GuildID).GetTextChannel(ChannelID).SendMessageAsync(Message);
+
                     if (Delete == 0)
                         return msg;
                     else
@@ -533,6 +586,72 @@ namespace Pustalorc.Applications
         }
         private bool HasRole(ulong RoleID, ulong UserID, ulong GuildID) =>
             UserID == Configuration.Load().OwnerID ? true : (ClientInstance?.GetGuild(GuildID)?.GetUser(UserID)?.Roles?.ToList()?.Exists(k => k.Id == RoleID) ?? false);
+        private bool IsSpam(SocketUserMessage msg, out string Reason)
+        {
+            var usr = msg.MentionedUsers;
+            var rol = msg.MentionedRoles;
+            var cha = msg.MentionedChannels;
+            
+            foreach (var u in usr)
+            {
+                if (usr.Count(k => k.Id == u.Id) > 1)
+                {
+                    Reason = "Multiple user mention";
+                    return true;
+                }
+            }
+            foreach (var r in rol)
+            {
+                if (rol.Count(k => k.Id == r.Id) > 1)
+                {
+                    Reason = "Multiple role mention";
+                    return true;
+                }
+            }
+            foreach (var c in cha)
+            {
+                if (cha.Count(k => k.Id == c.Id) > 1)
+                {
+                    Reason = "Multiple channel mention";
+                    return true;
+                }
+            }
+
+            var s = Spam.Find(k => k.ID == msg.Author.Id);
+            if (s != null)
+            {
+                s.Messages.RemoveAll(k => (ulong)DateTime.Now.Subtract(k.Added).TotalHours > 1);
+
+                var m = s.Messages.Find(k => CalculateSimilarity(msg.Content.ToLower(), k.Message.ToLower()) == 1);
+                if (m != null)
+                {
+                    var sim = CalculateSimilarity(msg.Content.ToLower(), m.Message.ToLower());
+                    Reason = "Similar message with " + m.Message + "\nSimilarity: " + sim + "\nPosted at: " + m.Added;
+                    return true;
+                }
+
+                var msgs = s.Messages;
+                msgs.RemoveAll(k => (ulong)DateTime.Now.Subtract(k.Added).TotalSeconds > 5);
+
+                m = s.Messages.Find(k => CalculateSimilarity(msg.Content.ToLower(), k.Message.ToLower()) > 0.80);
+                if (m != null)
+                {
+                    var sim = CalculateSimilarity(msg.Content.ToLower(), m.Message.ToLower());
+                    Reason = "Similar message with " + m.Message + "\nSimilarity: " + sim + "\nPosted at: " + m.Added;
+                    return true;
+                }
+            }
+            else
+                Spam.Add(new AntiSpam() {
+                    ID = msg.Author.Id, Messages = new List<AntiSpamMsg>() {
+                        new AntiSpamMsg() {
+                            Added = DateTime.Now, Message = msg.Content.ToLower() }
+                    }
+                });
+
+            Reason = null;
+            return false;
+        }
 
         private List<string> CheckDoubleQuotes(List<string> Items)
         {

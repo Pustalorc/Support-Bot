@@ -1,14 +1,14 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace Pustalorc.Applications.SupportBot_
 {
     public sealed class Configuration
     {
         [JsonIgnore]
-        public static string FileName { get; private set; } = "config/configuration.json";
+        public static string FileName { get; private set; } = "SupportBot_config/configuration.json";
         public string Token { get; set; } = Guid.Empty.ToString();
         public string RequestAcceptEmote { get; set; } = "👍";
         public string RequestDownvoteEmote { get; set; } = "👎";
@@ -205,5 +205,51 @@ namespace Pustalorc.Applications.SupportBot_
             string file = Path.Combine(AppContext.BaseDirectory, FileName);
             return JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(file));
         }
+    }
+    public sealed class Learning
+    {
+        [JsonIgnore]
+        public static string FileName { get; private set; } = "SupportBot_config/learning.json";
+
+        public List<string> NoHelp { get; set; } = new List<string>();
+
+        public void SaveJson()
+        {
+            string file = Path.Combine(AppContext.BaseDirectory, FileName);
+            File.WriteAllText(file, ToJson());
+        }
+        public string ToJson()
+            => JsonConvert.SerializeObject(this, Formatting.Indented);
+        public static void EnsureExists()
+        {
+            string file = Path.Combine(AppContext.BaseDirectory, FileName);
+            if (!File.Exists(file))
+            {
+                string path = Path.GetDirectoryName(file);
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+
+                var config = new Learning();
+                config.SaveJson();
+                Console.WriteLine("Learning file created");
+            }
+            Console.WriteLine("Learning file verified");
+            return;
+        }
+        public static Learning Load()
+        {
+            string file = Path.Combine(AppContext.BaseDirectory, FileName);
+            return JsonConvert.DeserializeObject<Learning>(File.ReadAllText(file));
+        }
+    }
+    public sealed class AntiSpamMsg
+    {
+        public string Message;
+        public DateTime Added;
+    }
+    public sealed class AntiSpam
+    {
+        public ulong ID;
+        public List<AntiSpamMsg> Messages;
     }
 }
