@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Persiafighter.Applications.Support_Bot</RootNamespace>
     <AssemblyName>Support Bot</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <NuGetPackageImportStamp>

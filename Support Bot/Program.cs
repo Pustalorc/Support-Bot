@@ -251,7 +251,7 @@ namespace Pustalorc.Applications
                     Reaction.Message.Value.Reactions[Reaction.Emote].ReactionCount - 1 >= conf.DownvotesForDenial) ||
                     ((HasRole(conf.StaffRole, Reaction.UserId, ClientInstance.Guilds.ToList()[0].Id) ||
                     HasRole(conf.SupporterRole, Reaction.UserId, ClientInstance.Guilds.ToList()[0].Id)) &&
-                    Reaction.Emote.Name.ToLowerInvariant() == conf.AdminDenyEmote.ToLower()))
+                    Reaction.Emote.Name.ToLowerInvariant() == conf.AdminDenyEmote.ToLowerInvariant()))
                 {
                     await DeleteMessage(Reaction.Message.Value);
                     Requests--;
@@ -262,7 +262,7 @@ namespace Pustalorc.Applications
                     Reaction.Message.Value.Reactions[Reaction.Emote].ReactionCount - 1 >= conf.BanvotesForRemoval) ||
                     ((HasRole(conf.StaffRole, Reaction.UserId, ClientInstance.Guilds.ToList()[0].Id) ||
                     HasRole(conf.SupporterRole, Reaction.UserId, ClientInstance.Guilds.ToList()[0].Id)) &&
-                    Reaction.Emote.Name.ToLowerInvariant() == conf.AdminBanEmote.ToLower()))
+                    Reaction.Emote.Name.ToLowerInvariant() == conf.AdminBanEmote.ToLowerInvariant()))
                 {
                     await DeleteMessage(Reaction.Message.Value);
 
@@ -588,9 +588,9 @@ namespace Pustalorc.Applications
             UserID == Configuration.Load().OwnerID ? true : (ClientInstance?.GetGuild(GuildID)?.GetUser(UserID)?.Roles?.ToList()?.Exists(k => k.Id == RoleID) ?? false);
         private bool IsSpam(SocketUserMessage msg, out string Reason)
         {
-            var usr = msg.MentionedUsers;
-            var rol = msg.MentionedRoles;
-            var cha = msg.MentionedChannels;
+            var usr = msg?.MentionedUsers ?? new List<SocketUser>();
+            var rol = msg?.MentionedRoles ?? new List<SocketRole>();
+            var cha = msg?.MentionedChannels ?? new List<SocketGuildChannel>();
             
             foreach (var u in usr)
             {
@@ -617,35 +617,35 @@ namespace Pustalorc.Applications
                 }
             }
 
-            var s = Spam.Find(k => k.ID == msg.Author.Id);
+            var s = Spam?.Find(k => k.ID == msg.Author.Id) ?? null;
             if (s != null)
             {
-                s.Messages.RemoveAll(k => (ulong)DateTime.Now.Subtract(k.Added).TotalHours > 1);
+                s?.Messages?.RemoveAll(k => (ulong)DateTime.Now.Subtract(k.Added).TotalHours > 1);
 
-                var m = s.Messages.Find(k => CalculateSimilarity(msg.Content.ToLower(), k.Message.ToLower()) == 1);
+                var m = s?.Messages?.Find(k => CalculateSimilarity(msg.Content.ToLowerInvariant(), k.Message.ToLowerInvariant()) == 1) ?? null;
                 if (m != null)
                 {
-                    var sim = CalculateSimilarity(msg.Content.ToLower(), m.Message.ToLower());
-                    Reason = "Similar message with " + m.Message + "\nSimilarity: " + sim + "\nPosted at: " + m.Added;
+                    var sim = CalculateSimilarity(msg.Content.ToLowerInvariant(), m.Message.ToLowerInvariant());
+                    Reason = $"Similar message with {m.Message} \nSimilarity: {sim} \nPosted at: {m.Added}";
                     return true;
                 }
 
-                var msgs = s.Messages;
+                var msgs = s?.Messages?.ToList() ?? new List<AntiSpamMsg>();
                 msgs.RemoveAll(k => (ulong)DateTime.Now.Subtract(k.Added).TotalSeconds > 5);
 
-                m = s.Messages.Find(k => CalculateSimilarity(msg.Content.ToLower(), k.Message.ToLower()) > 0.80);
+                m = s?.Messages?.Find(k => CalculateSimilarity(msg.Content.ToLowerInvariant(), k.Message.ToLowerInvariant()) > 0.80) ?? null;
                 if (m != null)
                 {
-                    var sim = CalculateSimilarity(msg.Content.ToLower(), m.Message.ToLower());
-                    Reason = "Similar message with " + m.Message + "\nSimilarity: " + sim + "\nPosted at: " + m.Added;
+                    var sim = CalculateSimilarity(msg.Content.ToLowerInvariant(), m.Message.ToLowerInvariant());
+                    Reason = $"Similar message with {m.Message} \nSimilarity: {sim} \nPosted at: {m.Added}";
                     return true;
                 }
             }
             else
                 Spam.Add(new AntiSpam() {
-                    ID = msg.Author.Id, Messages = new List<AntiSpamMsg>() {
+                    ID = msg?.Author?.Id ?? 0, Messages = new List<AntiSpamMsg>() {
                         new AntiSpamMsg() {
-                            Added = DateTime.Now, Message = msg.Content.ToLower() }
+                            Added = DateTime.Now, Message = msg?.Content?.ToLowerInvariant() ?? "" }
                     }
                 });
 
