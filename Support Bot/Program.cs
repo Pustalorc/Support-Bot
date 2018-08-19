@@ -579,6 +579,7 @@ namespace Pustalorc.Applications
                 case "/status":
                 case "/purge":
                 case "/udetails":
+                case "!premium":
                     return true;
                 default:
                     return false;
