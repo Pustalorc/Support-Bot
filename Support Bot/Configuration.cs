@@ -1,165 +1,52 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
+using Newtonsoft.Json;
 
-namespace Pustalorc.Applications.SupportBot_
+// ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable once MemberCanBePrivate.Global
+
+namespace Persiafighter.Applications.Support_Bot
 {
     public sealed class Configuration
     {
-        [JsonIgnore]
-        public static string FileName { get; private set; } = "SupportBot_config/configuration.json";
+        [JsonIgnore] public static string FileName { get; } = "SupportBot_config/configuration.json";
+
         public string Token { get; set; } = Guid.Empty.ToString();
-        public string RequestAcceptEmote { get; set; } = "👍";
-        public string RequestDownvoteEmote { get; set; } = "👎";
-        public string RequestBanEmote { get; set; } = "⛔";
-        public string AdminBanEmote { get; set; } = "💢";
-        public string AdminDenyEmote { get; set; } = "💂";
-        public byte BanvotesForRemoval { get; set; } = 10;
-        public byte DownvotesForDenial { get; set; } = 5;
-        public bool SupporterAntiTagBypass { get; set; } = true;
-        public ulong SupportRequestClearMilliseconds { get; set; } = 14400000;
-        public ulong OwnerID { get; set; } = 0;
-        public ulong GeneralChannel { get; set; } = 0;
-        public ulong SupportChannel { get; set; } = 0;
-        public ulong SupportRequestsChannel { get; set; } = 0;
-        public ulong LogChannel { get; set; } = 0;
-        public ulong RequestBannedRole { get; set; } = 0;
-        public ulong SupporterRole { get; set; } = 0;
-        public ulong StaffRole { get; set; } = 0;
+        public ulong OwnerId { get; set; }
+        public ulong SupportChannel { get; set; }
+        public ulong LogChannel { get; set; }
+        public ulong ReadOnlyRole { get; set; }
+        public ulong SupporterRole { get; set; }
+        public ulong StaffRole { get; set; }
 
         public void SaveJson()
         {
-            string file = Path.Combine(AppContext.BaseDirectory, FileName);
+            var file = Path.Combine(AppContext.BaseDirectory, FileName);
             File.WriteAllText(file, ToJson());
         }
+
         public string ToJson()
-            => JsonConvert.SerializeObject(this, Formatting.Indented);
-        public static bool EnsureExists()
         {
-            string file = Path.Combine(AppContext.BaseDirectory, FileName);
+            return JsonConvert.SerializeObject(this, Formatting.Indented);
+        }
+
+        public static void EnsureExists()
+        {
+            var file = Path.Combine(AppContext.BaseDirectory, FileName);
             if (!File.Exists(file))
             {
-                string path = Path.GetDirectoryName(file);
-                if (!Directory.Exists(path))
+                var path = Path.GetDirectoryName(file);
+                if (!Directory.Exists(path) && path != null)
                     Directory.CreateDirectory(path);
 
                 var config = new Configuration();
 
                 Console.WriteLine("Please enter your discord bot token: ");
                 config.Token = Console.ReadLine();
-                Console.WriteLine("Please enter the name of the emote (if custom, the unicode otherwise) to be used to accept support requests: ");
-
-                var s = Console.ReadLine();
-                try
-                {
-                    var hexVal = Convert.ToInt32(s, 16);
-                    var strVal = Char.ConvertFromUtf32(hexVal);
-
-                    config.RequestAcceptEmote = strVal;
-                }
-                catch
-                {
-                    config.RequestAcceptEmote = s;
-                }
-
-                Console.WriteLine("Please enter the name of the emote (if custom, the unicode otherwise) to be used to decline support requests: ");
-
-                s = Console.ReadLine();
-                try
-                {
-                    var hexVal = Convert.ToInt32(s, 16);
-                    var strVal = Char.ConvertFromUtf32(hexVal);
-
-                    config.RequestDownvoteEmote = strVal;
-                }
-                catch
-                {
-                    config.RequestDownvoteEmote = s;
-                }
-
-                Console.WriteLine("Write the number of downvotes required in order for a support request to be declined (Min 1, Max 255): ");
-                if (byte.TryParse(Console.ReadLine(), out byte n) && n > 0)
-                    config.DownvotesForDenial = n;
-                else
-                    Console.WriteLine("Not a valid number (Min 1, Max 255).");
-
-                Console.WriteLine("Please enter the name of the emote (if custom, the unicode otherwise) to be used to request a ban of a user from support requests: ");
-
-                s = Console.ReadLine();
-                try
-                {
-                    var hexVal = Convert.ToInt32(s, 16);
-                    var strVal = Char.ConvertFromUtf32(hexVal);
-
-                    config.RequestBanEmote = strVal;
-                }
-                catch
-                {
-                    config.RequestBanEmote = s;
-                }
-
-                Console.WriteLine("Write the number of votes required in order for a user to be banned from support requests (Min 1, Max 255): ");
-                if (byte.TryParse(Console.ReadLine(), out n) && n > 0)
-                    config.BanvotesForRemoval = n;
-                else
-                    Console.WriteLine("Not a valid number (Min 1, Max 255).");
-
-                Console.WriteLine("Please enter the name of the emote (if custom, the unicode otherwise) to be used to ban a user from support requests: ");
-
-                s = Console.ReadLine();
-                try
-                {
-                    var hexVal = Convert.ToInt32(s, 16);
-                    var strVal = Char.ConvertFromUtf32(hexVal);
-
-                    config.AdminBanEmote = strVal;
-                }
-                catch
-                {
-                    config.AdminBanEmote = s;
-                }
-
-                Console.WriteLine("Please enter the name of the emote (if custom, the unicode otherwise) to be used to deny a request: ");
-
-                s = Console.ReadLine();
-                try
-                {
-                    var hexVal = Convert.ToInt32(s, 16);
-                    var strVal = Char.ConvertFromUtf32(hexVal);
-
-                    config.AdminDenyEmote = strVal;
-                }
-                catch
-                {
-                    config.AdminDenyEmote = s;
-                }
-
-                Console.WriteLine("Please write if anti-tag should be bypassed by supporters (Y/N): ");
-                if ("n" == Console.ReadLine().ToLowerInvariant())
-                    config.SupporterAntiTagBypass = false;
-
-                Console.WriteLine("Write the number (in Milliseconds) that the support-requests channel should be cleared (Min 1, Max 18446744073709551615): ");
-                if (ulong.TryParse(Console.ReadLine(), out ulong m) && m > 1000)
-                    config.SupportRequestClearMilliseconds = m;
-                else
-                    Console.WriteLine("Not a valid number (Min 1000, Max 18446744073709551615)");
-
-                Console.WriteLine("Write the ID of the general channel: ");
-                if (ulong.TryParse(Console.ReadLine(), out m))
-                    config.GeneralChannel = m;
-                else
-                    Console.WriteLine("Not a valid ID.");
 
                 Console.WriteLine("Write the ID of the support channel: ");
-                if (ulong.TryParse(Console.ReadLine(), out m))
+                if (ulong.TryParse(Console.ReadLine(), out var m))
                     config.SupportChannel = m;
-                else
-                    Console.WriteLine("Not a valid ID.");
-
-                Console.WriteLine("Write the ID of the support requests channel: ");
-                if (ulong.TryParse(Console.ReadLine(), out m))
-                    config.SupportRequestsChannel = m;
                 else
                     Console.WriteLine("Not a valid ID.");
 
@@ -171,7 +58,7 @@ namespace Pustalorc.Applications.SupportBot_
 
                 Console.WriteLine("Write your discord ID: ");
                 if (ulong.TryParse(Console.ReadLine(), out m))
-                    config.OwnerID = m;
+                    config.OwnerId = m;
                 else
                     Console.WriteLine("Not a valid ID.");
 
@@ -186,70 +73,25 @@ namespace Pustalorc.Applications.SupportBot_
                     config.StaffRole = m;
                 else
                     Console.WriteLine("Not a valid ID.");
-                
-                Console.WriteLine("Write the ID of the banned from requests role: ");
+
+                Console.WriteLine("Write the ID of the read only role: ");
                 if (ulong.TryParse(Console.ReadLine(), out m))
-                    config.RequestBannedRole = m;
+                    config.ReadOnlyRole = m;
                 else
                     Console.WriteLine("Not a valid ID.");
 
                 config.SaveJson();
                 Console.WriteLine("First-Start Configuration Generated");
-                return true;
+                return;
             }
+
             Console.WriteLine("Configuration Verified");
-            return false;
         }
+
         public static Configuration Load()
         {
-            string file = Path.Combine(AppContext.BaseDirectory, FileName);
+            var file = Path.Combine(AppContext.BaseDirectory, FileName);
             return JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(file));
         }
-    }
-    public sealed class Learning
-    {
-        [JsonIgnore]
-        public static string FileName { get; private set; } = "SupportBot_config/learning.json";
-
-        public List<string> NoHelp { get; set; } = new List<string>();
-
-        public void SaveJson()
-        {
-            string file = Path.Combine(AppContext.BaseDirectory, FileName);
-            File.WriteAllText(file, ToJson());
-        }
-        public string ToJson()
-            => JsonConvert.SerializeObject(this, Formatting.Indented);
-        public static void EnsureExists()
-        {
-            string file = Path.Combine(AppContext.BaseDirectory, FileName);
-            if (!File.Exists(file))
-            {
-                string path = Path.GetDirectoryName(file);
-                if (!Directory.Exists(path))
-                    Directory.CreateDirectory(path);
-
-                var config = new Learning();
-                config.SaveJson();
-                Console.WriteLine("Learning file created");
-            }
-            Console.WriteLine("Learning file verified");
-            return;
-        }
-        public static Learning Load()
-        {
-            string file = Path.Combine(AppContext.BaseDirectory, FileName);
-            return JsonConvert.DeserializeObject<Learning>(File.ReadAllText(file));
-        }
-    }
-    public sealed class AntiSpamMsg
-    {
-        public string Message;
-        public DateTime Added;
-    }
-    public sealed class AntiSpam
-    {
-        public ulong ID;
-        public List<AntiSpamMsg> Messages;
     }
 }
