@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ namespace Persiafighter.Applications.Support_Bot
     {
         private readonly DiscordSocketClient _client;
         private readonly List<IssueChannel> _issues = new List<IssueChannel>();
+        private readonly OverwritePermissions _readonly = new OverwritePermissions(PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Allow, PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Allow, PermValue.Deny, PermValue.Deny, manageRoles: PermValue.Deny, manageWebhooks: PermValue.Deny);
 
         public SupportModule(DiscordSocketClient clientInstance)
         {
@@ -62,14 +64,7 @@ namespace Persiafighter.Applications.Support_Bot
                 await channel.SendMessageAsync(
                     $"<@&{config.SupporterRole}>, {author.Mention} needs your help with: {context.Message.Content}");
 
-                var a = context.Channel as SocketTextChannel;
-
-                var modified = new OverwritePermissions(PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Allow,
-                    PermValue.Deny,
-                    PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Allow, PermValue.Deny,
-                    PermValue.Deny, manageRoles: PermValue.Deny, manageWebhooks: PermValue.Deny);
-
-                if (a != null) await a.AddPermissionOverwriteAsync(context.Message.Author, modified);
+                if (context.Channel is SocketTextChannel a) await a.AddPermissionOverwriteAsync(context.Message.Author, _readonly);
 
                 _issues.Add(new IssueChannel {Owner = author.Id, Channel = channel});
             }
@@ -98,7 +93,8 @@ namespace Persiafighter.Applications.Support_Bot
 
             await theChannel.ModifyAsync(async k =>
             {
-                var category = context.Guild.CategoryChannels.FirstOrDefault(l => l.Name == "RESOLVED") ??
+                var category = context.Guild.CategoryChannels.FirstOrDefault(l =>
+                                   string.Equals(l.Name, "RESOLVED", StringComparison.InvariantCultureIgnoreCase)) ??
                                (ICategoryChannel) await context.Guild.CreateCategoryChannelAsync("RESOLVED");
 
                 var lastChannel = context.Guild.TextChannels.OrderBy(l => l.Position).LastOrDefault(l =>
@@ -114,12 +110,11 @@ namespace Persiafighter.Applications.Support_Bot
                 k.Position = (lastChannel?.Position ?? category.Position) + 1;
             });
 
-            var modified = new OverwritePermissions(PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Allow,
-                PermValue.Deny,
-                PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Deny, PermValue.Allow, PermValue.Deny,
-                PermValue.Deny, manageRoles: PermValue.Deny, manageWebhooks: PermValue.Deny);
+            await theChannel.AddPermissionOverwriteAsync(context.Guild.EveryoneRole, _readonly);
 
-            await theChannel.AddPermissionOverwriteAsync(context.Guild.EveryoneRole, modified);
+            var a = context.Guild.GetTextChannel(Configuration.Load().SupportChannel);
+
+            if (a != null) await a.RemovePermissionOverwriteAsync(context.Message.Author);
 
             _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
         }
