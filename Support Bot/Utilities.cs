@@ -9,7 +9,7 @@ namespace Persiafighter.Applications.Support_Bot
 {
     public static class Utilities
     {
-        public static List<string> CheckDoubleQuotes(IEnumerable<string> items)
+        public static IEnumerable<string> CheckDoubleQuotes(IEnumerable<string> items)
         {
             var result = new List<string>();
             try
@@ -96,7 +96,6 @@ namespace Persiafighter.Applications.Support_Bot
                 case "$shutdown":
                 case "$game":
                 case "/status":
-                case "/purge":
                 case "!premium":
                 case "!close":
                 case "!resolve":

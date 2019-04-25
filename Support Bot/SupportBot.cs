@@ -106,22 +106,10 @@ namespace Persiafighter.Applications.Support_Bot
                         var d = DateTime.Now;
                         await _clientInstance.GetConnectionsAsync();
                         await context.Channel.SendMessageAsync(
-                            "----------- Support bot V4.0 status report -----------\nPing: " +
+                            "----------- Support bot V5.0 status report -----------\nPing: " +
                             (ulong) DateTime.Now.Subtract(d).TotalMilliseconds +
                             "ms.\nRunning on " + Environment.OSVersion +
-                            ".\n----------- Support bot V4.0 status report -----------");
-                        break;
-                    case "udetails":
-                        var user = Utilities.GetUser(_clientInstance, arguments[0], context.Guild.Id);
-                        if (user != null)
-                            await context.Channel.SendMessageAsync(
-                                user.Mention + "'s details:\nUsername - " + user.Username + "\nNickname - " +
-                                (string.IsNullOrEmpty(user.Nickname) ? "N/A" : user.Nickname) + "\nID - " + user.Id +
-                                "\nStatus - " + user.Status + "\nCustom Status/Playing - " +
-                                user.Activity.Name + "\nCreated - " + user.CreatedAt +
-                                "\nJoined - " + user.JoinedAt);
-                        else
-                            await context.Channel.SendMessageAsync("User " + arguments[0] + " not found");
+                            ".\n----------- Support bot V5.0 status report -----------");
                         break;
                 }
 

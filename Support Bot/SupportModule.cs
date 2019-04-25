@@ -45,6 +45,7 @@ namespace Persiafighter.Applications.Support_Bot
                 {
                     var channel2 = _issues.Find(k => k.Owner == author.Id);
                     await channel2.Channel.SendMessageAsync($"{author.Mention} says: {context.Message.Content}");
+                    await context.Message.DeleteAsync();
                     return;
                 }
 
@@ -130,6 +131,8 @@ namespace Persiafighter.Applications.Support_Bot
 
             var theChannel = context.Guild.GetTextChannel(context.Channel.Id);
             await theChannel.DeleteAsync();
+
+            _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
         }
 
         public Task HandleChannelDelete(SocketChannel arg)
