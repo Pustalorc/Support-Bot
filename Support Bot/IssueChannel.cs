@@ -6,5 +6,6 @@ namespace Persiafighter.Applications.Support_Bot
     {
         public IMessageChannel Channel;
         public ulong Owner;
+        public string Issue;
     }
 }

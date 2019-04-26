@@ -59,7 +59,7 @@ namespace Persiafighter.Applications.Support_Bot
                 await channel.ModifyAsync(k =>
                 {
                     var channel2 = guild.GetTextChannel(context.Channel.Id);
-                    var msg = author.Mention + ": " + context.Message.Content;
+                    var msg = context.Message.Content;
                     var cTopic = msg.Length > 1024 ? msg.Substring(0, 1024) : msg;
                     k.Topic = cTopic;
                     k.CategoryId = channel2.CategoryId;
@@ -71,7 +71,7 @@ namespace Persiafighter.Applications.Support_Bot
 
                 if (context.Channel is SocketTextChannel a) await a.AddPermissionOverwriteAsync(context.Message.Author, _readonly);
 
-                _issues.Add(new IssueChannel {Owner = author.Id, Channel = channel});
+                _issues.Add(new IssueChannel {Owner = author.Id, Channel = channel, Issue = context.Message.Content});
 
                 await context.Message.DeleteAsync();
             }
@@ -80,11 +80,7 @@ namespace Persiafighter.Applications.Support_Bot
         private static bool HasAnswer(IMessage contextMessage)
         {
             var learning = Learning.Load();
-            foreach (var s in learning.PreviousHelp)
-                if (Utilities.CalculateSimilarity(s, contextMessage.Content) > .80)
-                    return true;
-
-            return false;
+            return learning.PreviousHelp.Any(k => Utilities.CalculateSimilarity(k, contextMessage.Content) > .80);
         }
 
         public async void ResolveIssue(SocketCommandContext context)
@@ -92,12 +88,13 @@ namespace Persiafighter.Applications.Support_Bot
             if (!_issues.Exists(k => k.Channel.Id == context.Channel.Id))
                 return;
 
-            var theChannel = context.Guild.GetTextChannel(context.Channel.Id);
+            var issue = _issues.Find(k => k.Channel.Id == context.Channel.Id);
 
             var learning = Learning.Load();
-            learning.PreviousHelp.Add(theChannel.Topic);
+            learning.PreviousHelp.Add(issue.Issue);
             learning.SaveJson();
 
+            var theChannel = context.Guild.GetTextChannel(context.Channel.Id);
             await theChannel.AddPermissionOverwriteAsync(context.Guild.EveryoneRole, _readonly);
 
             var a = context.Guild.GetTextChannel(Configuration.Load().SupportChannel);
