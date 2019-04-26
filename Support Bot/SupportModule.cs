@@ -91,32 +91,35 @@ namespace Persiafighter.Applications.Support_Bot
             learning.PreviousHelp.Add(theChannel.Topic);
             learning.SaveJson();
 
-            await theChannel.ModifyAsync(async k =>
-            {
-                var category = context.Guild.CategoryChannels.FirstOrDefault(l =>
-                                   string.Equals(l.Name, "RESOLVED", StringComparison.InvariantCultureIgnoreCase)) ??
-                               (ICategoryChannel) await context.Guild.CreateCategoryChannelAsync("RESOLVED");
-
-                var lastChannel = context.Guild.TextChannels.OrderBy(l => l.Position).LastOrDefault(l =>
-                {
-                    if (l.CategoryId.HasValue) return l.CategoryId.Value == category.Id;
-
-                    return false;
-                });
-
-                k.Name = k.Topic;
-                k.Topic = "";
-                k.CategoryId = category.Id;
-                k.Position = (lastChannel?.Position ?? category.Position) + 1;
-            });
-
             await theChannel.AddPermissionOverwriteAsync(context.Guild.EveryoneRole, _readonly);
 
             var a = context.Guild.GetTextChannel(Configuration.Load().SupportChannel);
-
             if (a != null) await a.RemovePermissionOverwriteAsync(context.Message.Author);
 
             _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
+
+            await theChannel.ModifyAsync(k =>
+            {
+                k.Name = k.Topic;
+                k.Topic = "";
+            });
+
+            var category = context.Guild.CategoryChannels.FirstOrDefault(l =>
+                               string.Equals(l.Name, "RESOLVED", StringComparison.InvariantCultureIgnoreCase)) ??
+                           (ICategoryChannel) await context.Guild.CreateCategoryChannelAsync("RESOLVED");
+
+            var lastChannel = context.Guild.TextChannels.OrderBy(l => l.Position).LastOrDefault(l =>
+            {
+                if (l.CategoryId.HasValue) return l.CategoryId.Value == category.Id;
+
+                return false;
+            });
+
+            await theChannel.ModifyAsync(k =>
+            {
+                k.CategoryId = category.Id;
+                k.Position = (lastChannel?.Position ?? category.Position) + 1;
+            });
         }
 
         public async void CloseIssue(SocketCommandContext context)
@@ -126,6 +129,9 @@ namespace Persiafighter.Applications.Support_Bot
 
             var theChannel = context.Guild.GetTextChannel(context.Channel.Id);
             await theChannel.DeleteAsync();
+
+            var a = context.Guild.GetTextChannel(Configuration.Load().SupportChannel);
+            if (a != null) await a.RemovePermissionOverwriteAsync(context.Message.Author);
 
             _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
         }
