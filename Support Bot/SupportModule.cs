@@ -98,11 +98,7 @@ namespace Persiafighter.Applications.Support_Bot
 
             _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
 
-            await theChannel.ModifyAsync(k =>
-            {
-                k.Name = k.Topic;
-                k.Topic = "";
-            });
+            await theChannel.ModifyAsync(k => k.Name = k.Topic);
 
             var category = context.Guild.CategoryChannels.FirstOrDefault(l =>
                                string.Equals(l.Name, "RESOLVED", StringComparison.InvariantCultureIgnoreCase)) ??
