@@ -67,8 +67,6 @@ namespace Persiafighter.Applications.Support_Bot
                 return;
             }
 
-            var config = Configuration.Load();
-
             if (_antiSpam.IsSpam(context, out var reason))
             {
                 _antiSpam.HandleSpam(context, reason);
@@ -83,8 +81,9 @@ namespace Persiafighter.Applications.Support_Bot
             var executed = context.Message.Content.Split(' ').ToList();
             var comm = executed[0];
             executed.Remove(comm);
-            var arguments = Utilities.CheckDoubleQuotes(executed);
+            var arguments = Utilities.CheckDoubleQuotes(executed).ToList();
             var config = Configuration.Load();
+            var learning = Learning.Load();
 
             if (context.Message.Author.Id == config.OwnerId && comm.StartsWith("$", StringComparison.Ordinal))
                 switch (comm.Substring(1).ToLowerInvariant())
@@ -110,6 +109,19 @@ namespace Persiafighter.Applications.Support_Bot
                             (ulong) DateTime.Now.Subtract(d).TotalMilliseconds +
                             "ms.\nRunning on " + Environment.OSVersion +
                             ".\n----------- Support bot V5.0 status report -----------");
+                        break;
+                    case "learningfile":
+                        await context.Channel.SendMessageAsync($"```json\n{string.Join("\n", learning.PreviousHelp)}```");
+                        break;
+                    case "dellearning":
+                        if (!int.TryParse(arguments[0], out var index))
+                        {
+                            await context.Channel.SendMessageAsync("NaN");
+                            return;
+                        }
+
+                        learning.PreviousHelp.RemoveAt(index);
+                        learning.SaveJson();
                         break;
                 }
 
