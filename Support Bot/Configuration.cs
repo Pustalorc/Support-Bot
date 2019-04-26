@@ -15,7 +15,6 @@ namespace Persiafighter.Applications.Support_Bot
         public ulong OwnerId { get; set; }
         public ulong SupportChannel { get; set; }
         public ulong LogChannel { get; set; }
-        public ulong ReadOnlyRole { get; set; }
         public ulong SupporterRole { get; set; }
         public ulong StaffRole { get; set; }
 
@@ -71,12 +70,6 @@ namespace Persiafighter.Applications.Support_Bot
                 Console.WriteLine("Write the ID of the staff role: ");
                 if (ulong.TryParse(Console.ReadLine(), out m))
                     config.StaffRole = m;
-                else
-                    Console.WriteLine("Not a valid ID.");
-
-                Console.WriteLine("Write the ID of the read only role: ");
-                if (ulong.TryParse(Console.ReadLine(), out m))
-                    config.ReadOnlyRole = m;
                 else
                     Console.WriteLine("Not a valid ID.");
 

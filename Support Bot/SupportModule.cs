@@ -23,33 +23,13 @@ namespace Persiafighter.Applications.Support_Bot
         {
             var config = Configuration.Load();
             var guild = context.Guild;
-            var readonlyRole = guild.GetRole(config.ReadOnlyRole);
             var author = Utilities.GetUser(_client, context.User.Id.ToString(), guild.Id);
 
             if (HasAnswer(context.Message))
             {
                 await context.Message.DeleteAsync();
-                try
-                {
-                    await author.AddRoleAsync(readonlyRole);
-                }
-                catch
-                {
-                    // Ignore any exceptions
-                }
-
-                try
-                {
-                    await author.SendMessageAsync(
-                        "You have been muted in the server for not reading previous existing information before asking." +
-                        "\n If you want to regain the ability to talk, please contact a staff member and tell them you've learnt your lesson.");
-                }
-                catch
-                {
-                    await context.Channel.SendMessageAsync(author.Mention +
-                                                           "You have been muted in the server for not reading previous existing information before asking." +
-                                                           "\n If you want to regain the ability to talk, please contact a staff member and tell them you've learnt your lesson.");
-                }
+                await context.Channel.SendMessageAsync(
+                    $"{author.Mention} that question has been previously asked! Please check the RESOLVED category for an answer. If you still need help with this, contact a supporter.");
             }
             else if (context.Channel.Id == config.SupportChannel)
             {
