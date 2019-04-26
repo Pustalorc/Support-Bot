@@ -95,6 +95,65 @@ namespace Persiafighter.Applications.Support_Bot
                     case "game":
                         await _clientInstance.SetGameAsync(string.Join(" ", arguments));
                         break;
+                    case "config":
+                        await context.Channel.SendMessageAsync("```css" +
+                                                               $"\nStaff Role: {config.StaffRole}" +
+                                                               $"\nLog Channel: {config.LogChannel}" +
+                                                               $"\nSupporter Role: {config.SupporterRole}" +
+                                                               $"\nSupport Channel: {config.SupportChannel}```");
+                        break;
+                    case "supportchannel":
+                        config.SupportChannel = context.Channel.Id;
+                        config.SaveJson();
+                        await context.Channel.SendMessageAsync("Updated support channel in config.");
+                        break;
+                    case "logchannel":
+                        config.LogChannel = context.Channel.Id;
+                        config.SaveJson();
+                        await context.Channel.SendMessageAsync("Updated log channel in config.");
+                        break;
+                    case "supportrole":
+                        var role = context.Guild.Roles.First(k =>
+                        {
+                            if (ulong.TryParse(arguments[0], out var id))
+                                return k.Id == id;
+
+                            return string.Equals(k.Mention, arguments[0],
+                                       StringComparison.InvariantCultureIgnoreCase) || string.Equals(k.Name,
+                                       arguments[0], StringComparison.InvariantCultureIgnoreCase);
+                        });
+
+                        if (role == null)
+                        {
+                            await context.Channel.SendMessageAsync("Role not found.");
+                            return;
+                        }
+
+                        config.SupporterRole = role.Id;
+                        config.SaveJson();
+                        await context.Channel.SendMessageAsync("Updated supporter role in config.");
+                        break;
+                    case "staffrole":
+                        role = context.Guild.Roles.First(k =>
+                        {
+                            if (ulong.TryParse(arguments[0], out var id))
+                                return k.Id == id;
+
+                            return string.Equals(k.Mention, arguments[0],
+                                       StringComparison.InvariantCultureIgnoreCase) || string.Equals(k.Name,
+                                       arguments[0], StringComparison.InvariantCultureIgnoreCase);
+                        });
+
+                        if (role == null)
+                        {
+                            await context.Channel.SendMessageAsync("Role not found.");
+                            return;
+                        }
+
+                        config.StaffRole = role.Id;
+                        config.SaveJson();
+                        await context.Channel.SendMessageAsync("Updated staff role in config.");
+                        break;
                 }
 
             if (Utilities.HasRole(_clientInstance, config.StaffRole, context.Message.Author.Id, context.Guild.Id) &&

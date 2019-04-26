@@ -95,10 +95,14 @@ namespace Persiafighter.Applications.Support_Bot
             {
                 case "$shutdown":
                 case "$game":
+                case "$config":
+                case "$supportchannel":
+                case "$logchannel":
+                case "$supportrole":
+                case "$staffrole":
                 case "/status":
                 case "/learningfile":
                 case "/dellearning":
-                case "!premium":
                 case "!close":
                 case "!resolve":
                     return true;
