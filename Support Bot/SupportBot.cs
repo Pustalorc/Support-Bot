@@ -111,16 +111,21 @@ namespace Persiafighter.Applications.Support_Bot
                             ".\n----------- Support bot V5.0 status report -----------");
                         break;
                     case "learningfile":
-                        await context.Channel.SendMessageAsync($"```json\n{string.Join("\n", learning.PreviousHelp)}```");
+                        await context.Channel.SendMessageAsync($"```css\n{(learning.PreviousHelp.Count != 0 ? string.Join("\n", learning.PreviousHelp) : "NO ITEMS!!!")}```");
                         break;
                     case "dellearning":
-                        if (!int.TryParse(arguments[0], out var index))
+                        if (!uint.TryParse(arguments[0], out var index))
                         {
-                            await context.Channel.SendMessageAsync("NaN");
+                            await context.Channel.SendMessageAsync("Not an unsigned integer");
                             return;
                         }
 
-                        learning.PreviousHelp.RemoveAt(index);
+                        if (learning.PreviousHelp.Count < index)
+                        {
+                            await context.Channel.SendMessageAsync("Specified index is out of the array size.");
+                        }
+
+                        learning.PreviousHelp.RemoveAt((int) index);
                         learning.SaveJson();
                         break;
                 }
