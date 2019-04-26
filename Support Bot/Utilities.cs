@@ -96,6 +96,8 @@ namespace Persiafighter.Applications.Support_Bot
                 case "$shutdown":
                 case "$game":
                 case "/status":
+                case "/learningfile":
+                case "/dellearning":
                 case "!premium":
                 case "!close":
                 case "!resolve":
