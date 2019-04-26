@@ -25,46 +25,48 @@ namespace Persiafighter.Applications.Support_Bot
             var guild = context.Guild;
             var author = Utilities.GetUser(_client, context.User.Id.ToString(), guild.Id);
 
+            if (context.Channel.Id != config.SupportChannel)
+                return;
+
             if (HasAnswer(context.Message))
             {
                 await context.Message.DeleteAsync();
                 await context.Channel.SendMessageAsync(
                     $"{author.Mention} that question has been previously asked! Please check the RESOLVED category for an answer. If you still need help with this, contact a supporter.");
+                return;
             }
-            else if (context.Channel.Id == config.SupportChannel)
+
+            if (_issues.Exists(k => k.Owner == author.Id))
             {
-                if (_issues.Exists(k => k.Owner == author.Id))
-                {
-                    var channel2 = _issues.Find(k => k.Owner == author.Id);
-                    await channel2.Channel.SendMessageAsync($"{author.Mention} says: {context.Message.Content}");
-                    await context.Message.DeleteAsync();
-                    return;
-                }
-
-                var cName = context.Message.Content.Length > 100
-                    ? context.Message.Content.Substring(0, 100)
-                    : context.Message.Content;
-                var channel = await guild.CreateTextChannelAsync(cName);
-
-                await channel.ModifyAsync(k =>
-                {
-                    var channel2 = guild.GetTextChannel(context.Channel.Id);
-                    var msg = context.Message.Content;
-                    var cTopic = msg.Length > 1024 ? msg.Substring(0, 1024) : msg;
-                    k.Topic = cTopic;
-                    k.CategoryId = channel2.CategoryId;
-                    k.Position = channel2.Position + 1;
-                });
-
-                await channel.SendMessageAsync(
-                    $"<@&{config.SupporterRole}>, {author.Mention} needs your help with: {context.Message.Content}");
-
-                if (context.Channel is SocketTextChannel a) await a.AddPermissionOverwriteAsync(context.Message.Author, _readonly);
-
-                _issues.Add(new IssueChannel {Owner = author.Id, Channel = channel, Issue = context.Message.Content});
-
+                var channel2 = _issues.Find(k => k.Owner == author.Id);
+                await channel2.Channel.SendMessageAsync($"{author.Mention} says: {context.Message.Content}");
                 await context.Message.DeleteAsync();
+                return;
             }
+
+            var cName = context.Message.Content.Length > 100
+                ? context.Message.Content.Substring(0, 100)
+                : context.Message.Content;
+            var channel = await guild.CreateTextChannelAsync(cName);
+
+            await channel.ModifyAsync(k =>
+            {
+                var channel2 = guild.GetTextChannel(context.Channel.Id);
+                var msg = context.Message.Content;
+                var cTopic = msg.Length > 1024 ? msg.Substring(0, 1024) : msg;
+                k.Topic = cTopic;
+                k.CategoryId = channel2.CategoryId;
+                k.Position = channel2.Position + 1;
+            });
+
+            await channel.SendMessageAsync(
+                $"<@&{config.SupporterRole}>, {author.Mention} needs your help with: {context.Message.Content}");
+
+            if (context.Channel is SocketTextChannel a) await a.AddPermissionOverwriteAsync(context.Message.Author, _readonly);
+
+            _issues.Add(new IssueChannel {Owner = author.Id, Channel = channel, Issue = context.Message.Content});
+
+            await context.Message.DeleteAsync();
         }
 
         private static bool HasAnswer(IMessage contextMessage)
