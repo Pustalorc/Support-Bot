@@ -51,12 +51,12 @@ namespace Persiafighter.Applications.Support_Bot
                     return;
                 }
 
-                var channel = await guild.CreateTextChannelAsync(author.Nickname ?? author.Username);
+                var channel = await guild.CreateTextChannelAsync(context.Message.Content);
 
                 await channel.ModifyAsync(k =>
                 {
                     var channel2 = guild.GetTextChannel(context.Channel.Id);
-                    k.Topic = context.Message.Content;
+                    k.Topic = author.Mention + ": " + context.Message.Content;
                     k.CategoryId = channel2.CategoryId;
                     k.Position = channel2.Position + 1;
                 });
@@ -67,6 +67,8 @@ namespace Persiafighter.Applications.Support_Bot
                 if (context.Channel is SocketTextChannel a) await a.AddPermissionOverwriteAsync(context.Message.Author, _readonly);
 
                 _issues.Add(new IssueChannel {Owner = author.Id, Channel = channel});
+
+                await context.Message.DeleteAsync();
             }
         }
 
@@ -98,7 +100,7 @@ namespace Persiafighter.Applications.Support_Bot
 
             _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
 
-            await theChannel.ModifyAsync(k => k.Name = k.Topic);
+            await theChannel.ModifyAsync(k => k.Topic = "");
 
             var category = context.Guild.CategoryChannels.FirstOrDefault(l =>
                                string.Equals(l.Name, "RESOLVED", StringComparison.InvariantCultureIgnoreCase)) ??
