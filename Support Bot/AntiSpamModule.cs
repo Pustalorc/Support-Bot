@@ -24,10 +24,10 @@ namespace Persiafighter.Applications.Support_Bot
         {
             reason = "None";
             var config = Configuration.Load();
-            /*if (Utilities.HasRole(_client, config.SupporterRole, contextMessage.Message.Author.Id,
+            if (Utilities.HasRole(_client, config.SupporterRole, contextMessage.Message.Author.Id,
                     contextMessage.Guild.Id) || Utilities.HasRole(_client, config.StaffRole,
                     contextMessage.Message.Author.Id, contextMessage.Guild.Id))
-                return false;*/
+                return false;
 
             var usr = contextMessage.Message.MentionedUsers ?? new List<SocketUser>();
             var rol = contextMessage.Message.MentionedRoles ?? new List<SocketRole>();

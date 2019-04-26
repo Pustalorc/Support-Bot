@@ -120,10 +120,7 @@ namespace Persiafighter.Applications.Support_Bot
                             return;
                         }
 
-                        if (learning.PreviousHelp.Count < index)
-                        {
-                            await context.Channel.SendMessageAsync("Specified index is out of the array size.");
-                        }
+                        if (learning.PreviousHelp.Count < index) await context.Channel.SendMessageAsync("Specified index is out of the array size.");
 
                         learning.PreviousHelp.RemoveAt((int) index);
                         learning.SaveJson();
