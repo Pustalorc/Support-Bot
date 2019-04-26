@@ -108,7 +108,7 @@ namespace Persiafighter.Applications.Support_Bot
                 await contextMessage.Guild.AddBanAsync(contextMessage.Message.Author, 7, "Spamming. Anti-Spam ban.",
                     new RequestOptions {AuditLogReason = "Anti-spam ban"});
                 await contextMessage.Channel.SendMessageAsync(
-                    contextMessage.Message.Author.Mention + " banned for spamming.");
+                    contextMessage.Message.Author.Mention + " was banned for spamming despite being warned not to.");
                 await contextMessage.Guild.GetTextChannel(config.LogChannel).SendMessageAsync(
                     "Anti-spam triggered on " + contextMessage.Message.Author.Id + ".\nReason: " + (reason ?? "N/A") +
                     ".\nMessage sent: " + contextMessage.Message.Content +
