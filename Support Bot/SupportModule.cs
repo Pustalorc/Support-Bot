@@ -29,7 +29,15 @@ namespace Persiafighter.Applications.Support_Bot
             if (HasAnswer(context.Message))
             {
                 await context.Message.DeleteAsync();
-                await author.AddRoleAsync(readonlyRole);
+                try
+                {
+                    await author.AddRoleAsync(readonlyRole);
+                }
+                catch
+                {
+                    // Ignore any exceptions
+                }
+
                 try
                 {
                     await author.SendMessageAsync(
@@ -38,7 +46,9 @@ namespace Persiafighter.Applications.Support_Bot
                 }
                 catch
                 {
-                    // Ignore any exceptions
+                    await context.Channel.SendMessageAsync(author.Mention +
+                                                           "You have been muted in the server for not reading previous existing information before asking." +
+                                                           "\n If you want to regain the ability to talk, please contact a staff member and tell them you've learnt your lesson.");
                 }
             }
             else if (context.Channel.Id == config.SupportChannel)
