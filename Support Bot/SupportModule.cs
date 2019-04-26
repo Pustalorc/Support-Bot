@@ -51,12 +51,13 @@ namespace Persiafighter.Applications.Support_Bot
                     return;
                 }
 
-                var channel = await guild.CreateTextChannelAsync(context.Message.Content);
+                var channel = await guild.CreateTextChannelAsync(context.Message.Content.Substring(0, context.Message.Content.Length > 100 ? 100 : context.Message.Content.Length));
 
                 await channel.ModifyAsync(k =>
                 {
                     var channel2 = guild.GetTextChannel(context.Channel.Id);
-                    k.Topic = author.Mention + ": " + context.Message.Content;
+                    var msg = author.Mention + ": " + context.Message.Content;
+                    k.Topic = msg.Substring(0, msg.Length > 1024 ? 1024 : msg.Length);
                     k.CategoryId = channel2.CategoryId;
                     k.Position = channel2.Position + 1;
                 });
