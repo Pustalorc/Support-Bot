@@ -36,9 +36,9 @@ namespace Persiafighter.Applications.Support_Bot
                 return;
             }
 
-            if (_issues.Exists(k => k.Owner == author.Id))
+            if (_issues.Exists(k => k.Owner.Id == author.Id))
             {
-                var channel2 = _issues.Find(k => k.Owner == author.Id);
+                var channel2 = _issues.Find(k => k.Owner.Id == author.Id);
                 await channel2.Channel.SendMessageAsync($"{author.Mention} says: {context.Message.Content}");
                 await context.Message.DeleteAsync();
                 return;
@@ -64,7 +64,7 @@ namespace Persiafighter.Applications.Support_Bot
 
             if (context.Channel is SocketTextChannel a) await a.AddPermissionOverwriteAsync(context.Message.Author, _readonly);
 
-            _issues.Add(new IssueChannel {Owner = author.Id, Channel = channel, Issue = context.Message.Content});
+            _issues.Add(new IssueChannel {Owner = author, Channel = channel, Issue = context.Message.Content});
 
             await context.Message.DeleteAsync();
         }
@@ -90,7 +90,7 @@ namespace Persiafighter.Applications.Support_Bot
             await theChannel.AddPermissionOverwriteAsync(context.Guild.EveryoneRole, _readonly);
 
             var a = context.Guild.GetTextChannel(Configuration.Load().SupportChannel);
-            if (a != null) await a.RemovePermissionOverwriteAsync(context.Message.Author);
+            if (a != null) await a.RemovePermissionOverwriteAsync(issue.Owner);
 
             _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
 
@@ -119,11 +119,12 @@ namespace Persiafighter.Applications.Support_Bot
             if (!_issues.Exists(k => k.Channel.Id == context.Channel.Id))
                 return;
 
+            var issue = _issues.Find(k => k.Channel.Id == context.Channel.Id);
             var theChannel = context.Guild.GetTextChannel(context.Channel.Id);
             await theChannel.DeleteAsync();
 
             var a = context.Guild.GetTextChannel(Configuration.Load().SupportChannel);
-            if (a != null) await a.RemovePermissionOverwriteAsync(context.Message.Author);
+            if (a != null) await a.RemovePermissionOverwriteAsync(issue.Owner);
 
             _issues.RemoveAll(k => k.Channel.Id == context.Channel.Id);
         }
